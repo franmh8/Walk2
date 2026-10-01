@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "C5i Hidalgo • Radiocomunicación Táctica WalkieT",
+  "short_name": "C5i Radio",
+  "description": "Sistema de Radiocomunicación Táctica Push-To-Talk y Despacho de Emergencias C5i Hidalgo",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1321",
+  "theme_color": "#0b1321",
+  "categories": ["security", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/c5i-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/c5i-icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

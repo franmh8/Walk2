@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-c5i-vino: #691c32;
+  --color-c5i-vinodark: #4d1222;
+  --color-c5i-carmine: #8a1a36;
+  --color-c5i-accent: #9f2241;
+  --color-c5i-bright: #bc2e54;
+  --color-c5i-gold: #bc955c;
+  --color-c5i-goldlight: #dfb15b;
+}
+
+html {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background-color: #070c16;
+  color: #f8fafc;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideLeft {
+  animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -1,0 +1,6 @@
+{
+  "name": "C5i Hidalgo WalkieT Radio",
+  "description": "Sistema de radiocomunicación táctica PTT estilo Zello para el C5i de Hidalgo con canales de emergencia, contactos directos, historial de voz y conexión a base de datos MySQL/PHP.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

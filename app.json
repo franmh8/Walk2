@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "C5i WalkieT Radio",
+    "slug": "c5i-walkiet-radio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#070c16"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.c5i.hidalgo.walkiet",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio", "fetch", "remote-notification"],
+        "NSMicrophoneUsageDescription": "C5i requiere acceso al micrófono para comunicaciones tácticas Push-to-Talk (PTT).",
+        "NSLocationWhenInUseUsageDescription": "C5i requiere tu ubicación para el despacho y alertas de emergencia SOS."
+      }
+    },
+    "android": {
+      "package": "com.c5i.hidalgo.walkiet",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.VIBRATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "C5i requiere acceso al micrófono para transmisiones tácticas PTT."
+        }
+      ]
+    ]
+  }
+}

@@ -88,27 +88,27 @@ export default function App() {
   },
   {
     name: 'package.json',
-    desc: 'Dependencias para Expo 51 y React Native',
+    desc: 'Dependencias para Expo 57 y React Native',
     path: 'expo-app/package.json',
     code: `{
   "name": "c5i-hidalgo-walkiet-expo",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/native": "^6.1.17",
-    "expo": "~51.0.28",
-    "expo-av": "~14.0.7",
-    "expo-haptics": "~13.0.1",
+    "expo": "~57.0.26",
+    "expo-av": "~16.0.8",
+    "expo-haptics": "~57.0.3",
     "lucide-react-native": "^0.395.0",
-    "react": "18.2.0",
-    "react-native": "0.74.5",
-    "react-native-safe-area-context": "4.10.5",
-    "react-native-screens": "3.31.1"
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0"
   }
 }`,
   },

@@ -93,6 +93,7 @@ export default function App() {
     code: `{
   "name": "c5i-hidalgo-walkiet-expo",
   "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
     "start": "expo start"
   },

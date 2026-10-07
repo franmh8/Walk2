@@ -8,6 +8,8 @@
     "start": "node server.ts",
     "build": "vite build",
     "preview": "vite preview",
+    "mobile": "cd expo-app && npx expo start",
+    "mobile:tunnel": "cd expo-app && npx expo start --tunnel -c",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },

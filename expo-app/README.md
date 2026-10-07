@@ -1,37 +1,44 @@
-# C5i Hidalgo WalkieT Radio (React Native / Expo)
+# C5i Hidalgo WalkieT - App Móvil (Expo / React Native)
 
-Aplicación táctica completa de radiocomunicación Push-to-Talk (PTT) para iOS y Android desarrollada con **Expo** y **React Native**.
+Aplicación nativa móvil para **Expo Go** (iOS y Android) actualizada a **Expo SDK 57**, **React 19.2** y **React Native 0.86**.
 
 ---
 
-## 🚀 Cómo ejecutar en Expo Go (iPhone y Android)
+## 📱 Cómo ejecutar en tu teléfono (iOS / Android con Expo Go)
 
-### Paso 1: Instalar dependencias
-Abre tu terminal en la carpeta `expo-app`:
+### 1. Entra a la carpeta de la app móvil:
+```bash
+cd expo-app
+```
+
+### 2. Instala las dependencias:
 ```bash
 npm install
 ```
 
-### Paso 2: Iniciar servidor de desarrollo de Expo
+### 3. Inicia el servidor Expo con túnel:
 ```bash
-npx expo start
+npx expo start --tunnel -c
 ```
-> **Nota para conexión remota/túnel:** Si tu teléfono no está en la misma red Wi-Fi que tu computadora, inicia con túnel:
-> ```bash
-> npx expo start --tunnel
-> ```
+*(El parámetro `--tunnel` permite que tu iPhone y Android se conecten sin importar la red Wi-Fi; `-c` limpia la caché de Metro)*.
 
-### Paso 3: Abrir en tu teléfono
-1. **iPhone:** Abre la aplicación de la Cámara nativa y escanea el código QR mostrado en la terminal. Toca la notificación para abrirlo en **Expo Go**.
-2. **Android:** Abre la app **Expo Go** y selecciona **"Scan QR code"**.
+### 4. Escanear en tu móvil:
+- **iPhone:** Abre la aplicación nativa de **Cámara**, enfoca el código QR en pantalla y toca la notificación para abrir en **Expo Go**.
+- **Android:** Abre la aplicación **Expo Go**, toca **"Scan QR code"** y enfoca el código QR.
 
 ---
 
-## 📱 Características Nativas Incluidas
-- **Botón Push-to-Talk (PTT)** con grabación en tiempo real usando `expo-av`.
-- **Respuesta háptica táctica** en iPhone y Android mediante `expo-haptics`.
-- **Selector de 5 Canales Operativos C5i** (General, Emergencias 911, Operativo Pachuca, etc.).
-- **Despacho y Chat Táctico** con mensajes cifrados.
-- **Directorio de Unidades y Contactos** con botón PTT directo punto a punto.
-- **Botón de Emergencia SOS (Código Rojo)** con confirmación táctica.
-- **Historial de Voz** para volver a escuchar las ráfagas recibidas.
+## 🛠️ Estructura de `expo-app/`
+```
+expo-app/
+├── package.json         # Dependencias para Expo SDK 57, React 19.2, React Native 0.86
+├── App.tsx              # Componente raíz con navegación (@react-navigation) y proveedores
+├── app.json             # Configuración y permisos nativos de Expo (Micrófono, Audio background, sdkVersion 57.0.0)
+├── babel.config.js      # Configuración de Babel
+├── tsconfig.json        # Configuración TypeScript
+└── src/
+    ├── screens/         # Pantallas (PTT, Grupos, Chat, Contactos, Perfil)
+    ├── context/         # Estados globales (Auth, Radio, Chat)
+    ├── services/        # AudioService (expo-av, expo-haptics), ApiService
+    └── types.ts         # Tipos e interfaces
+```

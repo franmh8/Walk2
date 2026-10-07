@@ -6,9 +6,6 @@
     "sdkVersion": "57.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "backgroundColor": "#070c16"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.c5i.hidalgo.walkiet",
@@ -33,6 +30,12 @@
         "expo-av",
         {
           "microphonePermission": "C5i requiere acceso al micrófono para transmisiones tácticas PTT."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "C5i requiere tu ubicación para coordinar alertas de emergencia SOS."
         }
       ]
     ]

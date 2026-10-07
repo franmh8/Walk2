@@ -18,11 +18,20 @@ cd expo-app
 npm install
 
 2. Iniciar servidor Expo:
-npx expo start --tunnel
+npx expo start --tunnel -c
 
 3. En tu teléfono:
 - iPhone: Escanea el código QR con la Cámara para abrir en Expo Go.
 - Android: Abre Expo Go y toca "Scan QR code".`,
+  },
+  {
+    name: 'index.js',
+    desc: 'Punto de entrada nativo de Expo (registerRootComponent)',
+    path: 'expo-app/index.js',
+    code: `import { registerRootComponent } from 'expo';
+import App from './App';
+
+registerRootComponent(App);`,
   },
   {
     name: 'App.tsx',

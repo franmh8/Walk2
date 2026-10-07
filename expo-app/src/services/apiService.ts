@@ -22,6 +22,16 @@ export const setBackendUrl = async (url: string): Promise<void> => {
 };
 
 export const ApiService = {
+  async login(identificador: string, password: string) {
+    const base = await getBackendUrl();
+    const res = await axios.post(
+      `${base}/api/security/login`,
+      { identificador, password },
+      { timeout: 7000 }
+    );
+    return res.data;
+  },
+
   async getStatus() {
     const base = await getBackendUrl();
     const res = await axios.get(`${base}/api/security/status`, { timeout: 5000 });

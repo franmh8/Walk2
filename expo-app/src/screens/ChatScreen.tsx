@@ -12,16 +12,18 @@ import {
 } from 'react-native';
 import { useChat } from '../context/ChatContext';
 import { useAuth } from '../context/AuthContext';
-import { Send, Shield } from 'lucide-react-native';
+import { useRadio } from '../context/RadioContext';
+import { Send, Shield, MessageSquare } from 'lucide-react-native';
 
 export function ChatScreen() {
   const { user } = useAuth();
+  const { selectedChannel } = useRadio();
   const { messages, sendMessage } = useChat();
   const [inputText, setInputText] = useState('');
 
   const handleSend = () => {
     if (!inputText.trim()) return;
-    sendMessage(inputText);
+    sendMessage(inputText, selectedChannel?.id);
     setInputText('');
   };
 
@@ -29,8 +31,10 @@ export function ChatScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>DESPACHO Y MENSAJERÍA TÁCTICA</Text>
-          <Text style={styles.headerSubtitle}>Canal 1 Operativo • C5i Hidalgo</Text>
+          <Text style={styles.headerTitle}>DESPACHO Y CHAT TÁCTICO</Text>
+          <Text style={styles.headerSubtitle}>
+            {selectedChannel ? selectedChannel.name : 'Frecuencia Operativa C5i'}
+          </Text>
         </View>
         <Shield color="#10b981" size={18} />
       </View>
@@ -39,25 +43,35 @@ export function ChatScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <FlatList
-          data={messages}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16 }}
-          renderItem={({ item }) => {
-            const isMe = item.sender_id === user?.id || item.sender_id === 'usr-1';
-            return (
-              <View style={[styles.bubbleContainer, isMe ? styles.bubbleRight : styles.bubbleLeft]}>
-                <Text style={styles.senderName}>{item.sender_callsign || item.sender_name}</Text>
-                <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                  <Text style={styles.messageText}>{item.text}</Text>
-                  <Text style={styles.timestamp}>
-                    {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
+        {messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MessageSquare color="#94a3b8" size={44} strokeWidth={1.5} />
+            <Text style={styles.emptyTitle}>Canal de Mensajes Limpio</Text>
+            <Text style={styles.emptySubtitle}>
+              No hay mensajes ni reportes previos. Escribe el primer mensaje táctico usando la barra inferior.
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={{ padding: 16 }}
+            renderItem={({ item }) => {
+              const isMe = item.sender_id === user?.id;
+              return (
+                <View style={[styles.bubbleContainer, isMe ? styles.bubbleRight : styles.bubbleLeft]}>
+                  <Text style={styles.senderName}>{item.sender_callsign || item.sender_name}</Text>
+                  <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
+                    <Text style={styles.messageText}>{item.text}</Text>
+                    <Text style={styles.timestamp}>
+                      {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            );
-          }}
-        />
+              );
+            }}
+          />
+        )}
 
         <View style={styles.inputContainer}>
           <TextInput
@@ -68,7 +82,7 @@ export function ChatScreen() {
             style={styles.input}
           />
           <Pressable onPress={handleSend} style={styles.sendButton}>
-            <Send color="#ffffff" size={18} />
+            <Send color="#ffffff" size={17} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -99,6 +113,25 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     fontSize: 11,
     marginTop: 2,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyTitle: {
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 14,
+  },
+  emptySubtitle: {
+    color: '#64748b',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
   },
   bubbleContainer: {
     marginBottom: 12,

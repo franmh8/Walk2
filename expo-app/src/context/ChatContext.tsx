@@ -1,56 +1,61 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatMessage } from '../types';
+import { useAuth } from './AuthContext';
 
 interface ChatContextType {
   messages: ChatMessage[];
-  sendMessage: (text: string) => void;
+  sendMessage: (text: string, channelId?: string) => Promise<void>;
+  clearMessages: () => Promise<void>;
 }
-
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'm-1',
-    sender_id: 'c5-central',
-    sender_name: 'Despacho Central C5i',
-    sender_callsign: 'CENTRAL-C5I',
-    text: 'Frecuencia táctica operacional lista. Todas las unidades reportar estatus.',
-    type: 'text',
-    created_at: new Date(Date.now() - 300000).toISOString(),
-    channel_id: 'c-1',
-  },
-  {
-    id: 'm-2',
-    sender_id: 'p-104',
-    sender_name: 'Unidad 104',
-    sender_callsign: 'PATRULLA-104',
-    text: 'Sector Plaza Juárez sin novedad. En recorrido preventivo.',
-    type: 'text',
-    created_at: new Date(Date.now() - 120000).toISOString(),
-    channel_id: 'c-1',
-  },
-];
 
 const ChatContext = createContext<ChatContextType>({} as any);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return;
-    const msg: ChatMessage = {
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem('c5i_chat_messages');
+        if (stored) {
+          setMessages(JSON.parse(stored));
+        } else {
+          setMessages([]);
+        }
+      } catch (err) {
+        console.warn('Error leyendo mensajes de chat:', err);
+      }
+    })();
+  }, [user]);
+
+  const sendMessage = async (text: string, channelId?: string) => {
+    if (!text.trim() || !user) return;
+
+    const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
-      sender_id: 'usr-1',
-      sender_name: 'Oficial C5i',
-      sender_callsign: 'PATRULLA-302',
+      sender_id: user.id,
+      sender_name: user.name,
+      sender_callsign: user.callsign,
       text: text.trim(),
       type: 'text',
       created_at: new Date().toISOString(),
-      channel_id: 'c-1',
+      channel_id: channelId || null,
     };
-    setMessages((prev) => [...prev, msg]);
+
+    const updated = [...messages, newMsg];
+    setMessages(updated);
+    await AsyncStorage.setItem('c5i_chat_messages', JSON.stringify(updated));
+  };
+
+  const clearMessages = async () => {
+    setMessages([]);
+    await AsyncStorage.removeItem('c5i_chat_messages');
   };
 
   return (
-    <ChatContext.Provider value={{ messages, sendMessage }}>
+    <ChatContext.Provider value={{ messages, sendMessage, clearMessages }}>
       {children}
     </ChatContext.Provider>
   );

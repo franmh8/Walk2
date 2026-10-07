@@ -11,7 +11,7 @@ import {
 import { useRadio } from '../context/RadioContext';
 import { useAuth } from '../context/AuthContext';
 import { AudioService } from '../services/audioService';
-import { Mic, Volume2, ShieldAlert, Radio as RadioIcon, History, Zap } from 'lucide-react-native';
+import { Mic, Volume2, ShieldAlert, Radio as RadioIcon, History, Trash2 } from 'lucide-react-native';
 
 export function PttScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -21,6 +21,7 @@ export function PttScreen({ navigation }: any) {
     startTransmitting,
     stopTransmitting,
     voiceHistory,
+    clearHistory,
   } = useRadio();
 
   const [historyVisible, setHistoryVisible] = useState(false);
@@ -28,14 +29,14 @@ export function PttScreen({ navigation }: any) {
   const handleSosTrigger = () => {
     Alert.alert(
       '🚨 ALERTA ROJA SOS C5i',
-      '¿Deseas emitir una alerta de emergencia inmediata a todo el Centro de Comando C5i?',
+      '¿Deseas emitir una alerta de emergencia inmediata a la Central de Despacho C5i?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'EMITIR SOS',
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Alerta SOS Emitida', 'Se ha enviado tu ubicación y alerta prioritaria al C5i.');
+            Alert.alert('Alerta SOS Emitida', `Alerta enviada para la unidad ${user?.callsign || 'OPERATIVA'}.`);
           },
         },
       ]
@@ -57,7 +58,7 @@ export function PttScreen({ navigation }: any) {
         </View>
 
         <Pressable onPress={handleSosTrigger} style={styles.sosButton}>
-          <ShieldAlert color="#ffffff" size={16} />
+          <ShieldAlert color="#ffffff" size={15} />
           <Text style={styles.sosText}>SOS</Text>
         </Pressable>
       </View>
@@ -69,9 +70,11 @@ export function PttScreen({ navigation }: any) {
       >
         <View style={styles.channelInfo}>
           <Text style={styles.channelLabel}>CANAL SELECCIONADO</Text>
-          <Text style={styles.channelName}>{selectedChannel.name}</Text>
+          <Text style={styles.channelName}>
+            {selectedChannel ? selectedChannel.name : 'SIN CANAL SELECCIONADO'}
+          </Text>
           <Text style={styles.channelMeta}>
-            34 unidades activas • Cifrado AES-256
+            {selectedChannel ? 'Canal enlazado • Cifrado AES-256' : 'Toca aquí para seleccionar o crear un canal'}
           </Text>
         </View>
         <View style={styles.channelBadge}>
@@ -81,8 +84,8 @@ export function PttScreen({ navigation }: any) {
 
       {/* Operador Info */}
       <View style={styles.operatorCard}>
-        <Text style={styles.operatorCallsign}>{user?.callsign || 'PATRULLA-302'}</Text>
-        <Text style={styles.operatorUnit}>{user?.unit || 'Sector Sur Pachuca'}</Text>
+        <Text style={styles.operatorCallsign}>{user?.callsign || 'OFICIAL C5i'}</Text>
+        <Text style={styles.operatorUnit}>{user?.name || user?.unit || 'Sector Operativo Hidalgo'}</Text>
       </View>
 
       {/* Botón Central PTT */}
@@ -108,22 +111,30 @@ export function PttScreen({ navigation }: any) {
         </Pressable>
       </View>
 
-      {/* Barra de Historial Reciente */}
+      {/* Barra de Historial */}
       <View style={styles.bottomBar}>
-        <Pressable
-          onPress={() => setHistoryVisible(!historyVisible)}
-          style={styles.historyToggle}
-        >
-          <History color="#94a3b8" size={18} />
-          <Text style={styles.historyToggleText}>
-            Últimas transmisiones ({voiceHistory.length})
-          </Text>
-        </Pressable>
+        <View style={styles.historyToggleRow}>
+          <Pressable
+            onPress={() => setHistoryVisible(!historyVisible)}
+            style={styles.historyToggle}
+          >
+            <History color="#94a3b8" size={16} />
+            <Text style={styles.historyToggleText}>
+              Transmisiones registradas ({voiceHistory.length})
+            </Text>
+          </Pressable>
+
+          {voiceHistory.length > 0 && (
+            <Pressable onPress={clearHistory} style={styles.clearHistoryButton}>
+              <Trash2 color="#ef4444" size={15} />
+            </Pressable>
+          )}
+        </View>
 
         {historyVisible && (
           <ScrollView style={styles.historyList}>
             {voiceHistory.length === 0 ? (
-              <Text style={styles.emptyText}>Sin transmisiones grabadas.</Text>
+              <Text style={styles.emptyText}>Sin transmisiones registradas aún.</Text>
             ) : (
               voiceHistory.map((item) => (
                 <Pressable
@@ -226,7 +237,7 @@ const styles = StyleSheet.create({
   },
   channelName: {
     color: '#f8fafc',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     marginTop: 2,
   },
@@ -311,7 +322,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 20,
   },
+  historyToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   historyToggle: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -322,8 +339,15 @@ const styles = StyleSheet.create({
   },
   historyToggleText: {
     color: '#94a3b8',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  clearHistoryButton: {
+    padding: 10,
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   historyList: {
     maxHeight: 140,

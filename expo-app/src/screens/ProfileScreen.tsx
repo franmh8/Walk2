@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { User, Shield, Lock, Phone, Radio, LogOut, CheckCircle } from 'lucide-react-native';
+import { User, Shield, Lock, Phone, LogOut, CheckCircle } from 'lucide-react-native';
 
 export function ProfileScreen() {
   const { user, logout } = useAuth();
@@ -17,10 +17,16 @@ export function ProfileScreen() {
   const handleLogout = () => {
     Alert.alert(
       'Cerrar Sesión Táctica',
-      '¿Deseas desconectar este terminal de la frecuencia C5i?',
+      '¿Deseas desconectar este dispositivo de la red C5i?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Desconectar', style: 'destructive', onPress: () => logout() },
+        {
+          text: 'Desconectar',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+          },
+        },
       ]
     );
   };
@@ -33,9 +39,9 @@ export function ProfileScreen() {
           <View style={styles.avatarLarge}>
             <User color="#f8fafc" size={36} />
           </View>
-          <Text style={styles.userName}>{user?.name}</Text>
-          <Text style={styles.userCallsign}>{user?.callsign}</Text>
-          <Text style={styles.userUnit}>{user?.unit}</Text>
+          <Text style={styles.userName}>{user?.name || 'Oficial Operativo'}</Text>
+          <Text style={styles.userCallsign}>{user?.callsign || 'OPERATIVO'}</Text>
+          <Text style={styles.userUnit}>{user?.unit || 'Sector Operativo Hidalgo'}</Text>
 
           <View style={styles.statusBadge}>
             <CheckCircle color="#10b981" size={14} />
@@ -58,7 +64,7 @@ export function ProfileScreen() {
           <View style={styles.row}>
             <Lock color="#38bdf8" size={18} />
             <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Autenticación Criptográfica</Text>
+              <Text style={styles.rowLabel}>Autenticación</Text>
               <Text style={styles.rowValue}>PBKDF2-SHA512 (100k rounds)</Text>
             </View>
           </View>
@@ -66,8 +72,8 @@ export function ProfileScreen() {
           <View style={styles.row}>
             <Phone color="#10b981" size={18} />
             <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>Línea Telefónica Vinculada</Text>
-              <Text style={styles.rowValue}>{user?.phone_number}</Text>
+              <Text style={styles.rowLabel}>Línea Vinculada</Text>
+              <Text style={styles.rowValue}>{user?.phone_number || 'No especificada'}</Text>
             </View>
           </View>
         </View>

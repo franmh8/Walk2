@@ -272,10 +272,7 @@ export function LoginScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="email-address"
-                style={[
-                  styles.input,
-                  identifierError ? styles.inputTextError : null,
-                ]}
+                style={styles.input}
               />
             </View>
           </View>
@@ -310,10 +307,7 @@ export function LoginScreen() {
                 placeholderTextColor="#94a3b8"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                style={[
-                  styles.input,
-                  passwordError ? styles.inputTextError : null,
-                ]}
+                style={styles.input}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -600,16 +594,16 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff', // Fondo blanco puro idéntico a Web
     borderWidth: 1,
-    borderColor: '#cbd5e1',
+    borderColor: '#e2e8f0',
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 48,
   },
   inputWrapperError: {
-    borderColor: '#f43f5e', // border-rose-500
-    backgroundColor: '#fff5f5', // fondo rojizo suave
+    borderColor: '#f43f5e', // Solo el borde se pone en rosa/rojo
+    backgroundColor: '#ffffff', // Fondo estrictamente blanco
   },
   input: {
     flex: 1,
@@ -617,9 +611,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 10,
     paddingVertical: 0,
-  },
-  inputTextError: {
-    color: '#881337',
   },
 
   loginButton: {

@@ -7,14 +7,25 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRadio } from '../context/RadioContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { AudioService } from '../services/audioService';
-import { Mic, Volume2, ShieldAlert, Radio as RadioIcon, History, Trash2 } from 'lucide-react-native';
+import {
+  Mic,
+  AlertTriangle,
+  Users,
+  Wifi,
+  History,
+  Trash2,
+  Volume2,
+} from 'lucide-react-native';
 
 export function PttScreen({ navigation }: any) {
   const { user } = useAuth();
+  const { colors, isDark } = useTheme();
   const {
     selectedChannel,
     isTransmitting,
@@ -22,6 +33,7 @@ export function PttScreen({ navigation }: any) {
     stopTransmitting,
     voiceHistory,
     clearHistory,
+    channels,
   } = useRadio();
 
   const [historyVisible, setHistoryVisible] = useState(false);
@@ -36,117 +48,216 @@ export function PttScreen({ navigation }: any) {
           text: 'EMITIR SOS',
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Alerta SOS Emitida', `Alerta enviada para la unidad ${user?.callsign || 'OPERATIVA'}.`);
+            Alert.alert(
+              'Alerta SOS Emitida',
+              `Alerta transmitida a Central C5i para la unidad ${user?.callsign || 'OPERATIVA'}.`
+            );
           },
         },
       ]
     );
   };
 
+  const channelTitle = selectedChannel
+    ? selectedChannel.name
+    : channels.length === 0
+    ? 'Sin canales (Toca para crear)'
+    : 'Selecciona un canal';
+
+  const memberCount = selectedChannel?.member_count || (channels.length === 0 ? 0 : 1);
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header Táctico */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoBadge}>
-            <RadioIcon color="#dfb15b" size={18} />
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>C5i HIDALGO</Text>
-            <Text style={styles.headerSubtitle}>RADIO TÁCTICO PTT</Text>
-          </View>
-        </View>
-
-        <Pressable onPress={handleSosTrigger} style={styles.sosButton}>
-          <ShieldAlert color="#ffffff" size={15} />
-          <Text style={styles.sosText}>SOS</Text>
-        </Pressable>
-      </View>
-
-      {/* Selector de Canal Activo */}
-      <Pressable
-        onPress={() => navigation.navigate('Grupos')}
-        style={styles.channelBanner}
-      >
-        <View style={styles.channelInfo}>
-          <Text style={styles.channelLabel}>CANAL SELECCIONADO</Text>
-          <Text style={styles.channelName}>
-            {selectedChannel ? selectedChannel.name : 'SIN CANAL SELECCIONADO'}
-          </Text>
-          <Text style={styles.channelMeta}>
-            {selectedChannel ? 'Canal enlazado • Cifrado AES-256' : 'Toca aquí para seleccionar o crear un canal'}
-          </Text>
-        </View>
-        <View style={styles.channelBadge}>
-          <Text style={styles.channelBadgeText}>CAMBIAR</Text>
-        </View>
-      </Pressable>
-
-      {/* Operador Info */}
-      <View style={styles.operatorCard}>
-        <Text style={styles.operatorCallsign}>{user?.callsign || 'OFICIAL C5i'}</Text>
-        <Text style={styles.operatorUnit}>{user?.name || user?.unit || 'Sector Operativo Hidalgo'}</Text>
-      </View>
-
-      {/* Botón Central PTT */}
-      <View style={styles.pttContainer}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* TOP BAR: CANAL ACTUAL, SOS & MEMBER BADGE (EXACTO A WEB - IMAGEN 2) */}
+      <View style={styles.topBar}>
         <Pressable
-          onPressIn={startTransmitting}
-          onPressOut={stopTransmitting}
-          style={[styles.pttButtonOuter, isTransmitting && styles.pttOuterActive]}
+          onPress={() => navigation.navigate('Grupos')}
+          style={styles.channelTitleWrapper}
+          android_ripple={{ color: 'transparent' }}
         >
-          <View style={[styles.pttButtonInner, isTransmitting && styles.pttInnerActive]}>
-            <Mic
-              color="#ffffff"
-              size={54}
-              strokeWidth={2.5}
-            />
-            <Text style={styles.pttText}>
-              {isTransmitting ? 'TRANSMITIENDO...' : 'MANTÉN PRESIONADO'}
-            </Text>
-            <Text style={styles.pttSubText}>
-              {isTransmitting ? 'RÁFAGA EN VIVO' : 'PARA HABLAR'}
-            </Text>
-          </View>
+          <Text style={[styles.channelLabel, { color: colors.textMuted }]}>
+            CANAL ACTUAL
+          </Text>
+          <Text
+            style={[styles.channelTitle, { color: colors.text }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {channelTitle}
+          </Text>
         </Pressable>
+
+        {/* Action Pills: SOS Emergency and Member Count */}
+        <View style={styles.topActions}>
+          {/* Emergency SOS Button */}
+          <Pressable
+            onPress={handleSosTrigger}
+            style={styles.sosButton}
+          >
+            <AlertTriangle color="#ffffff" size={14} fill="rgba(255,255,255,0.2)" />
+            <Text style={styles.sosText}>SOS</Text>
+          </Pressable>
+
+          {/* Member count pill */}
+          <Pressable
+            onPress={() => navigation.navigate('Grupos')}
+            style={[
+              styles.membersPill,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Users color={colors.textSecondary} size={14} />
+            <Text style={[styles.membersText, { color: colors.text }]}>
+              {memberCount}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
-      {/* Barra de Historial */}
-      <View style={styles.bottomBar}>
+      {/* CENTER AREA: STATUS PROMPT, PTT CIRCLE BUTTON & CONNECTED PILL */}
+      <View style={styles.centerArea}>
+        {/* Status prompt */}
+        <View style={styles.promptWrapper}>
+          {isTransmitting ? (
+            <View style={styles.promptRow}>
+              <View style={styles.transmittingDot} />
+              <Text style={styles.transmittingText}>
+                Transmitiendo audio en vivo...
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.promptRow}>
+              <View style={styles.idleDot} />
+              <Text style={[styles.idleText, { color: colors.textSecondary }]}>
+                Mantén presionado para hablar
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Concentric Circle PTT Button (Exacto a Web - Imagen 2) */}
+        <View style={styles.pttCircleWrapper}>
+          {/* Outer Ring */}
+          <View
+            style={[
+              styles.pttOuterRing,
+              {
+                backgroundColor: isTransmitting
+                  ? isDark
+                    ? '#1e1017'
+                    : '#fff1f2'
+                  : colors.pttOuterBg,
+                borderColor: isTransmitting
+                  ? '#f43f5e'
+                  : colors.pttOuterBorder,
+                shadowColor: isDark ? '#000000' : '#64748b',
+              },
+            ]}
+          >
+            {/* Inner PTT Button */}
+            <Pressable
+              onPressIn={startTransmitting}
+              onPressOut={stopTransmitting}
+              style={({ pressed }) => [
+                styles.pttInnerButton,
+                {
+                  backgroundColor: isTransmitting || pressed
+                    ? '#be123c'
+                    : colors.pttInnerBg,
+                  borderColor: isTransmitting || pressed
+                    ? '#f43f5e'
+                    : colors.pttInnerBorder,
+                },
+                (isTransmitting || pressed) && styles.pttInnerActive,
+              ]}
+            >
+              <Mic
+                color={
+                  isTransmitting
+                    ? '#ffffff'
+                    : isDark
+                    ? '#cbd5e1'
+                    : '#334155'
+                }
+                size={52}
+                strokeWidth={1.8}
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Connected Dynamic Status Pill: Conectado (Wi-Fi) */}
+        <View
+          style={[
+            styles.networkPill,
+            {
+              backgroundColor: colors.pillBg,
+              borderColor: colors.pillBorder,
+            },
+          ]}
+        >
+          <Wifi color={colors.pillText} size={14} />
+          <Text style={[styles.networkPillText, { color: colors.pillText }]}>
+            Conectado (Wi-Fi)
+          </Text>
+        </View>
+      </View>
+
+      {/* BOTTOM AREA: Historial de transmisiones colapsable limpio */}
+      <View style={[styles.bottomBar, { borderTopColor: colors.border }]}>
         <View style={styles.historyToggleRow}>
           <Pressable
             onPress={() => setHistoryVisible(!historyVisible)}
             style={styles.historyToggle}
           >
-            <History color="#94a3b8" size={16} />
-            <Text style={styles.historyToggleText}>
+            <History color={colors.textMuted} size={15} />
+            <Text style={[styles.historyToggleText, { color: colors.textSecondary }]}>
               Transmisiones registradas ({voiceHistory.length})
             </Text>
           </Pressable>
 
           {voiceHistory.length > 0 && (
             <Pressable onPress={clearHistory} style={styles.clearHistoryButton}>
-              <Trash2 color="#ef4444" size={15} />
+              <Trash2 color="#ef4444" size={14} />
             </Pressable>
           )}
         </View>
 
         {historyVisible && (
-          <ScrollView style={styles.historyList}>
+          <ScrollView
+            style={[styles.historyList, { maxHeight: 130 }]}
+            nestedScrollEnabled
+          >
             {voiceHistory.length === 0 ? (
-              <Text style={styles.emptyText}>Sin transmisiones registradas aún.</Text>
+              <Text style={[styles.emptyHistoryText, { color: colors.textMuted }]}>
+                Sin transmisiones registradas aún.
+              </Text>
             ) : (
               voiceHistory.map((item) => (
                 <Pressable
                   key={item.id}
                   onPress={() => AudioService.playAudio(item.audio_url)}
-                  style={styles.historyItem}
+                  style={[
+                    styles.historyItem,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.cardBorder,
+                    },
+                  ]}
                 >
-                  <Volume2 color="#eb527c" size={16} />
+                  <Volume2 color="#8a1a36" size={15} />
                   <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.historySender}>{item.sender_callsign}</Text>
-                    <Text style={styles.historyTime}>
-                      {new Date(item.created_at).toLocaleTimeString()}
+                    <Text style={[styles.historySender, { color: colors.text }]}>
+                      {item.sender_callsign || 'Patrulla'}
+                    </Text>
+                    <Text style={[styles.historyTime, { color: colors.textMuted }]}>
+                      {new Date(item.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
                     </Text>
                   </View>
                   <Text style={styles.playText}>REPRODUCIR</Text>
@@ -163,225 +274,204 @@ export function PttScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070c16',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+  topBar: {
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 14 : 20,
     paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    zIndex: 10,
   },
-  headerLeft: {
+  channelTitleWrapper: {
+    flex: 1,
+    marginRight: 12,
+  },
+  channelLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  channelTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: 2,
+    letterSpacing: -0.5,
+  },
+  topActions: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  logoBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#1e1622',
-    borderWidth: 1,
-    borderColor: '#691c32',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  headerTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  headerSubtitle: {
-    color: '#dfb15b',
-    fontSize: 10,
-    fontWeight: '600',
+    gap: 8,
   },
   sosButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#dc2626',
+    backgroundColor: '#e11d48', // rose-600 idéntico a web
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 4,
+    paddingVertical: 7,
+    borderRadius: 14,
+    gap: 5,
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   sosText: {
     color: '#ffffff',
-    fontWeight: 'bold',
     fontSize: 12,
-  },
-  channelBanner: {
-    margin: 16,
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#334155',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  channelInfo: {
-    flex: 1,
-  },
-  channelLabel: {
-    color: '#94a3b8',
-    fontSize: 10,
-    fontWeight: '700',
+    fontWeight: 'bold',
     letterSpacing: 0.5,
   },
-  channelName: {
-    color: '#f8fafc',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  channelMeta: {
-    color: '#38bdf8',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  channelBadge: {
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  channelBadgeText: {
-    color: '#dfb15b',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  operatorCard: {
+  membersPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 6,
   },
-  operatorCallsign: {
-    color: '#f1f5f9',
-    fontSize: 20,
-    fontWeight: 'bold',
-    letterSpacing: 1.5,
-  },
-  operatorUnit: {
-    color: '#64748b',
+  membersText: {
     fontSize: 12,
+    fontWeight: '700',
   },
-  pttContainer: {
+  centerArea: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
-  pttButtonOuter: {
+  promptWrapper: {
+    marginBottom: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  idleDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#10b981', // emerald-500
+  },
+  idleText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  transmittingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#f43f5e',
+  },
+  transmittingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#e11d48',
+  },
+  pttCircleWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pttOuterRing: {
     width: 250,
     height: 250,
     borderRadius: 125,
-    backgroundColor: '#161b26',
-    borderWidth: 8,
-    borderColor: '#1e293b',
-    justifyContent: 'center',
+    borderWidth: 1,
     alignItems: 'center',
-    elevation: 10,
-  },
-  pttOuterActive: {
-    borderColor: '#eb527c',
-    backgroundColor: '#23151c',
-  },
-  pttButtonInner: {
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: '#691c32',
     justifyContent: 'center',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  pttInnerButton: {
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    borderWidth: 1,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
   },
   pttInnerActive: {
-    backgroundColor: '#bc2e54',
-    transform: [{ scale: 0.95 }],
+    transform: [{ scale: 0.96 }],
   },
-  pttText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 10,
-    letterSpacing: 1,
+  networkPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+    marginTop: 32,
   },
-  pttSubText: {
-    color: '#fecdd3',
-    fontSize: 10,
-    marginTop: 2,
+  networkPillText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   bottomBar: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderTopWidth: 1,
   },
   historyToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   historyToggle: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    gap: 8,
+    gap: 6,
+    paddingVertical: 4,
   },
   historyToggleText: {
-    color: '#94a3b8',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   clearHistoryButton: {
-    padding: 10,
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 6,
   },
   historyList: {
-    maxHeight: 140,
     marginTop: 8,
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    padding: 8,
   },
-  emptyText: {
-    color: '#64748b',
+  emptyHistoryText: {
+    fontSize: 11,
     textAlign: 'center',
-    padding: 10,
-    fontSize: 12,
+    paddingVertical: 8,
   },
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 6,
   },
   historySender: {
-    color: '#f8fafc',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   historyTime: {
-    color: '#64748b',
     fontSize: 10,
+    marginTop: 2,
   },
   playText: {
-    color: '#eb527c',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8a1a36',
   },
 });

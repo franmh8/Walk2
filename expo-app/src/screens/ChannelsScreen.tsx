@@ -9,15 +9,20 @@ import {
   Modal,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import { useRadio } from '../context/RadioContext';
+import { useTheme } from '../context/ThemeContext';
 import { Channel } from '../types';
-import { Radio, Users, ShieldCheck, Check, Plus, X } from 'lucide-react-native';
+import { Radio, Users, ShieldCheck, Plus, X, Search, Lock } from 'lucide-react-native';
 
 export function ChannelsScreen({ navigation }: any) {
   const { channels, selectedChannel, setSelectedChannel, createChannel } = useRadio();
+  const { colors, isDark } = useTheme();
+
   const [modalVisible, setModalVisible] = useState(false);
   const [channelName, setChannelName] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const handleSelect = (channel: Channel) => {
     setSelectedChannel(channel);
@@ -26,7 +31,7 @@ export function ChannelsScreen({ navigation }: any) {
 
   const handleCreateChannel = async () => {
     if (!channelName.trim()) {
-      Alert.alert('Nombre requerido', 'Ingresa un nombre para el canal táctico.');
+      Alert.alert('Nombre requerido', 'Ingresa un nombre para el nuevo canal.');
       return;
     }
     const created = await createChannel(channelName.trim());
@@ -36,40 +41,87 @@ export function ChannelsScreen({ navigation }: any) {
     navigation.navigate('PTT');
   };
 
+  const filteredChannels = channels.filter((ch) =>
+    ch.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>CANALES Y GRUPOS TÁCTICOS</Text>
-          <Text style={styles.headerSubtitle}>Red C5i de Seguridad Pública Hidalgo</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Top Header */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.headerLabel, { color: colors.textMuted }]}>CANALES</Text>
+          <h1 style={[styles.headerTitle, { color: colors.text }] as any}>
+            Grupos de Transmisión
+          </h1>
         </View>
+
         <Pressable
           onPress={() => setModalVisible(true)}
-          style={styles.addButton}
+          style={[styles.createButton, { backgroundColor: colors.primary }]}
         >
-          <Plus color="#ffffff" size={18} />
-          <Text style={styles.addButtonText}>Nuevo</Text>
+          <Plus color="#ffffff" size={16} />
+          <Text style={styles.createButtonText}>Nuevo</Text>
         </Pressable>
       </View>
 
-      {channels.length === 0 ? (
+      {/* Barra de Búsqueda */}
+      <View style={styles.searchWrapper}>
+        <View
+          style={[
+            styles.searchBar,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+            },
+          ]}
+        >
+          <Search color={colors.textMuted} size={16} />
+          <TextInput
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            placeholder="Buscar canales o frecuencias..."
+            placeholderTextColor={colors.textMuted}
+            style={[styles.searchInput, { color: colors.text }]}
+          />
+          {searchTerm.length > 0 && (
+            <Pressable onPress={() => setSearchTerm('')}>
+              <X color={colors.textMuted} size={16} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      {/* Lista de Canales */}
+      {filteredChannels.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Radio color="#94a3b8" size={48} strokeWidth={1.5} />
-          <Text style={styles.emptyTitle}>Sin Canales Tácticos</Text>
-          <Text style={styles.emptySubtitle}>
-            Aún no tienes canales configurados. Pulsa el botón superior para crear tu primer grupo o frecuencia de radio.
+          <View
+            style={[
+              styles.emptyIconCircle,
+              { backgroundColor: colors.badgeBackground, borderColor: colors.badgeBorder },
+            ]}
+          >
+            <Radio color={colors.textMuted} size={32} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            {searchTerm ? 'No se encontraron canales' : 'Sin canales creados'}
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            {searchTerm
+              ? 'Intenta con otro término o crea un nuevo canal.'
+              : 'Comienza creando tu primera frecuencia de radio para el equipo.'}
           </Text>
           <Pressable
             onPress={() => setModalVisible(true)}
-            style={styles.emptyButton}
+            style={[styles.emptyButton, { backgroundColor: colors.primary }]}
           >
-            <Plus color="#ffffff" size={16} />
-            <Text style={styles.emptyButtonText}>Crear Primer Canal</Text>
+            <Plus color="#ffffff" size={15} />
+            <Text style={styles.emptyButtonText}>Crear Canal</Text>
           </Pressable>
         </View>
       ) : (
         <FlatList
-          data={channels}
+          data={filteredChannels}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => {
@@ -77,33 +129,79 @@ export function ChannelsScreen({ navigation }: any) {
             return (
               <Pressable
                 onPress={() => handleSelect(item)}
-                style={[styles.channelCard, isSelected && styles.selectedCard]}
+                style={[
+                  styles.channelCard,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: isSelected ? colors.primary : colors.cardBorder,
+                  },
+                  isSelected && styles.channelCardSelected,
+                ]}
               >
-                <View style={styles.iconContainer}>
-                  <Radio color={isSelected ? '#eb527c' : '#94a3b8'} size={22} />
+                <View
+                  style={[
+                    styles.channelIconBadge,
+                    {
+                      backgroundColor: isSelected
+                        ? isDark
+                          ? 'rgba(235, 82, 124, 0.15)'
+                          : '#fff1f2'
+                        : colors.badgeBackground,
+                    },
+                  ]}
+                >
+                  <Radio
+                    color={isSelected ? colors.primary : colors.textSecondary}
+                    size={20}
+                  />
                 </View>
 
-                <View style={styles.details}>
-                  <Text style={[styles.channelName, isSelected && styles.selectedName]}>
-                    {item.name}
-                  </Text>
+                <View style={styles.channelDetails}>
+                  <View style={styles.nameRow}>
+                    <Text
+                      style={[
+                        styles.channelName,
+                        { color: isSelected ? colors.primary : colors.text },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.name}
+                    </Text>
+                    {isSelected && (
+                      <View
+                        style={[
+                          styles.activeTag,
+                          {
+                            backgroundColor: isDark
+                              ? 'rgba(235, 82, 124, 0.2)'
+                              : '#fff1f2',
+                            borderColor: colors.primary,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.activeTagText, { color: colors.primary }]}>
+                          ACTIVO
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
                   <View style={styles.metaRow}>
-                    <View style={styles.metaItem}>
-                      <Users color="#64748b" size={12} />
-                      <Text style={styles.metaText}>{item.member_count || 1} activos</Text>
+                    <View style={styles.metaBadge}>
+                      <Users color={colors.textMuted} size={12} />
+                      <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                        {item.member_count || 1} activos
+                      </Text>
                     </View>
-                    <View style={styles.metaItem}>
+
+                    <View style={styles.metaBadge}>
                       <ShieldCheck color="#10b981" size={12} />
-                      <Text style={styles.metaText}>AES-256</Text>
+                      <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                        Cifrado
+                      </Text>
                     </View>
                   </View>
                 </View>
-
-                {isSelected && (
-                  <View style={styles.checkBadge}>
-                    <Check color="#ffffff" size={15} />
-                  </View>
-                )}
               </Pressable>
             );
           }}
@@ -114,36 +212,67 @@ export function ChannelsScreen({ navigation }: any) {
       <Modal
         visible={modalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Crear Canal Táctico</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Crear Nuevo Canal
+              </Text>
               <Pressable onPress={() => setModalVisible(false)}>
-                <X color="#64748b" size={20} />
+                <X color={colors.textMuted} size={20} />
               </Pressable>
             </View>
 
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Nombre de la Frecuencia o Grupo</Text>
-              <TextInput
-                value={channelName}
-                onChangeText={setChannelName}
-                placeholder="Ej. CANAL 1 - GENERAL C5i"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="characters"
-                style={styles.modalInput}
-              />
-            </View>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+              NOMBRE DE LA FRECUENCIA O CANAL
+            </Text>
+            <TextInput
+              value={channelName}
+              onChangeText={setChannelName}
+              placeholder="Ej. Operaciones Centro, Patrullas..."
+              placeholderTextColor={colors.textMuted}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                  color: colors.text,
+                },
+              ]}
+              autoFocus
+            />
 
-            <Pressable
-              onPress={handleCreateChannel}
-              style={styles.modalSubmitButton}
-            >
-              <Text style={styles.modalSubmitText}>Guardar y Conectar</Text>
-            </Pressable>
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={() => setModalVisible(false)}
+                style={[
+                  styles.cancelBtn,
+                  { borderColor: colors.cardBorder, backgroundColor: colors.badgeBackground },
+                ]}
+              >
+                <Text style={[styles.cancelBtnText, { color: colors.textSecondary }]}>
+                  Cancelar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleCreateChannel}
+                style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text style={styles.confirmBtnText}>Crear Canal</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -154,134 +283,170 @@ export function ChannelsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070c16',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 14 : 20,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+  },
+  headerLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   headerTitle: {
-    color: '#ffffff',
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  headerSubtitle: {
-    color: '#94a3b8',
-    fontSize: 11,
     marginTop: 2,
+    letterSpacing: -0.4,
   },
-  addButton: {
+  createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#691c32',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    gap: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  addButtonText: {
+  createButtonText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
+  },
+  searchWrapper: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    padding: 0,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingHorizontal: 32,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
-    color: '#f8fafc',
     fontSize: 17,
     fontWeight: 'bold',
-    marginTop: 14,
+    textAlign: 'center',
   },
   emptySubtitle: {
-    color: '#64748b',
     fontSize: 13,
     textAlign: 'center',
     marginTop: 6,
-    marginBottom: 20,
     lineHeight: 18,
   },
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#691c32',
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 14,
+    gap: 6,
+    marginTop: 20,
   },
   emptyButtonText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   channelCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderRadius: 20,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  selectedCard: {
-    borderColor: '#691c32',
-    backgroundColor: '#171420',
+  channelCardSelected: {
+    borderWidth: 1.5,
   },
-  iconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: '#1e293b',
+  channelIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  details: {
+  channelDetails: {
     flex: 1,
   },
-  channelName: {
-    color: '#f8fafc',
-    fontSize: 14,
-    fontWeight: 'bold',
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  selectedName: {
-    color: '#eb527c',
+  channelName: {
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  activeTag: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginLeft: 8,
+  },
+  activeTagText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   metaRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
-    marginTop: 4,
+    marginTop: 5,
   },
-  metaItem: {
+  metaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   metaText: {
-    color: '#64748b',
     fontSize: 11,
-  },
-  checkBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#691c32',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -289,11 +454,14 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#0f172a',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 20,
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -302,40 +470,46 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    color: '#ffffff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
   },
-  modalField: {
-    marginBottom: 14,
-  },
-  label: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '600',
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
     marginBottom: 6,
   },
-  modalInput: {
-    backgroundColor: '#1e293b',
+  textInput: {
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 44,
-    color: '#ffffff',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 14,
   },
-  modalSubmitButton: {
-    backgroundColor: '#691c32',
-    height: 44,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 20,
   },
-  modalSubmitText: {
+  cancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  cancelBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  confirmBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  confirmBtnText: {
     color: '#ffffff',
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

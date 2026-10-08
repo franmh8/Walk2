@@ -9,10 +9,12 @@ import {
   Modal,
   TextInput,
   Alert,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Contact } from '../types';
-import { User, Radio, Plus, X, Users } from 'lucide-react-native';
+import { useTheme } from '../context/ThemeContext';
+import { User, Phone, Plus, X, Search, Radio } from 'lucide-react-native';
 
 export function ContactsScreen({ navigation }: any) {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -20,6 +22,8 @@ export function ContactsScreen({ navigation }: any) {
   const [name, setName] = useState('');
   const [callsign, setCallsign] = useState('');
   const [phone, setPhone] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     (async () => {
@@ -38,15 +42,21 @@ export function ContactsScreen({ navigation }: any) {
 
   const handleAddContact = async () => {
     if (!name.trim() || !phone.trim()) {
-      Alert.alert('Datos requeridos', 'Por favor ingresa al menos nombre y teléfono.');
+      Alert.alert('Datos requeridos', 'Por favor ingresa nombre y número telefónico.');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '').trim();
+    if (cleanPhone.length !== 10) {
+      Alert.alert('Teléfono inválido', 'El número celular debe contener 10 dígitos.');
       return;
     }
 
     const newContact: Contact = {
       id: `cnt-${Date.now()}`,
       name: name.trim(),
-      phone_number: phone.trim(),
-      callsign: callsign.trim().toUpperCase() || 'UNIDAD',
+      phone_number: cleanPhone,
+      callsign: callsign.trim().toUpperCase() || `PATRULLA-${cleanPhone.slice(-3)}`,
       unit: 'Sector Operativo Hidalgo',
       status: 'online',
     };
@@ -63,7 +73,7 @@ export function ContactsScreen({ navigation }: any) {
   const handlePttDirect = (c: Contact) => {
     Alert.alert(
       'Enlace PTT Directo',
-      `¿Deseas iniciar enlace táctico punto a punto con ${c.callsign} (${c.name})?`,
+      `¿Deseas iniciar enlace de radio directo con ${c.callsign} (${c.name})?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Conectar Radio', onPress: () => navigation.navigate('PTT') },
@@ -71,65 +81,137 @@ export function ContactsScreen({ navigation }: any) {
     );
   };
 
+  const filteredContacts = contacts.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.callsign.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.phone_number.includes(searchTerm)
+  );
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>DIRECTORIO TÁCTICO C5i</Text>
-          <Text style={styles.headerSubtitle}>Unidades y contactos enlazados</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Top Header */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.headerLabel, { color: colors.textMuted }]}>DIRECTORIO</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Contactos C5i</Text>
         </View>
+
         <Pressable
           onPress={() => setModalVisible(true)}
-          style={styles.addButton}
+          style={[styles.createButton, { backgroundColor: colors.primary }]}
         >
-          <Plus color="#ffffff" size={18} />
-          <Text style={styles.addButtonText}>Agregar</Text>
+          <Plus color="#ffffff" size={16} />
+          <Text style={styles.createButtonText}>Agregar</Text>
         </Pressable>
       </View>
 
-      {contacts.length === 0 ? (
+      {/* Barra de Búsqueda */}
+      <View style={styles.searchWrapper}>
+        <View
+          style={[
+            styles.searchBar,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.cardBorder,
+            },
+          ]}
+        >
+          <Search color={colors.textMuted} size={16} />
+          <TextInput
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+            placeholder="Buscar por nombre, indicativo o teléfono..."
+            placeholderTextColor={colors.textMuted}
+            style={[styles.searchInput, { color: colors.text }]}
+          />
+          {searchTerm.length > 0 && (
+            <Pressable onPress={() => setSearchTerm('')}>
+              <X color={colors.textMuted} size={16} />
+            </Pressable>
+          )}
+        </View>
+      </View>
+
+      {/* Lista de Contactos */}
+      {filteredContacts.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Users color="#94a3b8" size={48} strokeWidth={1.5} />
-          <Text style={styles.emptyTitle}>Directorio Vacío</Text>
-          <Text style={styles.emptySubtitle}>
-            No hay unidades registradas aún. Agrega una nueva unidad o compañero usando el botón superior.
+          <View
+            style={[
+              styles.emptyIconCircle,
+              { backgroundColor: colors.badgeBackground, borderColor: colors.badgeBorder },
+            ]}
+          >
+            <User color={colors.textMuted} size={32} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            {searchTerm ? 'No se encontraron contactos' : 'Sin contactos guardados'}
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+            {searchTerm
+              ? 'Intenta con otro término o agrega un nuevo contacto.'
+              : 'Agrega compañeros operativos para llamadas directas y PTT.'}
           </Text>
           <Pressable
             onPress={() => setModalVisible(true)}
-            style={styles.emptyButton}
+            style={[styles.emptyButton, { backgroundColor: colors.primary }]}
           >
-            <Plus color="#ffffff" size={16} />
-            <Text style={styles.emptyButtonText}>Agregar Primera Unidad</Text>
+            <Plus color="#ffffff" size={15} />
+            <Text style={styles.emptyButtonText}>Agregar Contacto</Text>
           </Pressable>
         </View>
       ) : (
         <FlatList
-          data={contacts}
+          data={filteredContacts}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.avatar}>
-                <User color="#f8fafc" size={20} />
+            <Pressable
+              onPress={() => handlePttDirect(item)}
+              style={[
+                styles.contactCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.cardBorder,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.avatarBadge,
+                  { backgroundColor: colors.badgeBackground },
+                ]}
+              >
+                <User color={colors.primary} size={20} />
               </View>
 
-              <View style={styles.info}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  <View style={styles.statusDot} />
-                </View>
-                <Text style={styles.callsign}>{item.callsign}</Text>
-                <Text style={styles.unit}>{item.phone_number}</Text>
+              <View style={styles.contactDetails}>
+                <Text style={[styles.contactName, { color: colors.text }]}>
+                  {item.name}
+                </Text>
+                <Text style={[styles.contactCallsign, { color: colors.primary }]}>
+                  {item.callsign}
+                </Text>
+                <Text style={[styles.contactPhone, { color: colors.textMuted }]}>
+                  {item.phone_number}
+                </Text>
               </View>
 
               <Pressable
                 onPress={() => handlePttDirect(item)}
-                style={styles.pttDirectButton}
+                style={[
+                  styles.callButton,
+                  {
+                    backgroundColor: isDark
+                      ? 'rgba(235, 82, 124, 0.15)'
+                      : '#fff1f2',
+                    borderColor: colors.primary,
+                  },
+                ]}
               >
-                <Radio color="#ffffff" size={14} />
-                <Text style={styles.pttDirectText}>PTT</Text>
+                <Radio color={colors.primary} size={16} />
               </Pressable>
-            </View>
+            </Pressable>
           )}
         />
       )}
@@ -138,59 +220,105 @@ export function ContactsScreen({ navigation }: any) {
       <Modal
         visible={modalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nueva Unidad Táctica</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Nuevo Contacto Operativo
+              </Text>
               <Pressable onPress={() => setModalVisible(false)}>
-                <X color="#64748b" size={20} />
+                <X color={colors.textMuted} size={20} />
               </Pressable>
             </View>
 
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Nombre</Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Ej. Oficial García"
-                placeholderTextColor="#94a3b8"
-                style={styles.modalInput}
-              />
-            </View>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+              NOMBRE COMPLETO *
+            </Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Ej. Oficial Ramírez"
+              placeholderTextColor={colors.textMuted}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                  color: colors.text,
+                },
+              ]}
+            />
 
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Indicativo (Callsign)</Text>
-              <TextInput
-                value={callsign}
-                onChangeText={setCallsign}
-                placeholder="Ej. PATRULLA-108"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="characters"
-                style={styles.modalInput}
-              />
-            </View>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 12 }]}>
+              INDICATIVO / CALLSIGN
+            </Text>
+            <TextInput
+              value={callsign}
+              onChangeText={setCallsign}
+              placeholder="Ej. PATRULLA-448"
+              placeholderTextColor={colors.textMuted}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                  color: colors.text,
+                },
+              ]}
+              autoCapitalize="characters"
+            />
 
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Teléfono</Text>
-              <TextInput
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="10 dígitos"
-                placeholderTextColor="#94a3b8"
-                keyboardType="phone-pad"
-                style={styles.modalInput}
-              />
-            </View>
+            <Text style={[styles.inputLabel, { color: colors.textSecondary, marginTop: 12 }]}>
+              TELÉFONO CELULAR (10 DÍGITOS) *
+            </Text>
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Ej. 7711234567"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
+              maxLength={10}
+              style={[
+                styles.textInput,
+                {
+                  backgroundColor: colors.inputBg,
+                  borderColor: colors.inputBorder,
+                  color: colors.text,
+                },
+              ]}
+            />
 
-            <Pressable
-              onPress={handleAddContact}
-              style={styles.modalSubmitButton}
-            >
-              <Text style={styles.modalSubmitText}>Guardar Contacto</Text>
-            </Pressable>
+            <View style={styles.modalButtons}>
+              <Pressable
+                onPress={() => setModalVisible(false)}
+                style={[
+                  styles.cancelBtn,
+                  { borderColor: colors.cardBorder, backgroundColor: colors.badgeBackground },
+                ]}
+              >
+                <Text style={[styles.cancelBtnText, { color: colors.textSecondary }]}>
+                  Cancelar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleAddContact}
+                style={[styles.confirmBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text style={styles.confirmBtnText}>Guardar</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -201,141 +329,151 @@ export function ContactsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#070c16',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 14 : 20,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+  },
+  headerLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   headerTitle: {
-    color: '#ffffff',
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  headerSubtitle: {
-    color: '#94a3b8',
-    fontSize: 11,
     marginTop: 2,
+    letterSpacing: -0.4,
   },
-  addButton: {
+  createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#691c32',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    gap: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  addButtonText: {
+  createButtonText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
+  },
+  searchWrapper: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    padding: 0,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingHorizontal: 32,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   emptyTitle: {
-    color: '#f8fafc',
     fontSize: 17,
     fontWeight: 'bold',
-    marginTop: 14,
+    textAlign: 'center',
   },
   emptySubtitle: {
-    color: '#64748b',
     fontSize: 13,
     textAlign: 'center',
     marginTop: 6,
-    marginBottom: 20,
     lineHeight: 18,
   },
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#691c32',
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 14,
+    gap: 6,
+    marginTop: 20,
   },
   emptyButtonText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
-  card: {
+  contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1e293b',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
     borderRadius: 20,
-    backgroundColor: '#1e293b',
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  avatarBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  info: {
+  contactDetails: {
     flex: 1,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  contactName: {
+    fontSize: 15,
+    fontWeight: '700',
   },
-  name: {
-    color: '#f8fafc',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  statusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#10b981',
-  },
-  callsign: {
-    color: '#dfb15b',
+  contactCallsign: {
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
   },
-  unit: {
-    color: '#64748b',
+  contactPhone: {
     fontSize: 11,
-    marginTop: 1,
+    marginTop: 2,
   },
-  pttDirectButton: {
-    flexDirection: 'row',
+  callButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#691c32',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  pttDirectText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -343,11 +481,14 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#0f172a',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 20,
     padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -356,40 +497,46 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    color: '#ffffff',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
   },
-  modalField: {
-    marginBottom: 12,
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginBottom: 6,
   },
-  label: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  modalInput: {
-    backgroundColor: '#1e293b',
+  textInput: {
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 42,
-    color: '#ffffff',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 14,
   },
-  modalSubmitButton: {
-    backgroundColor: '#691c32',
-    height: 42,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 20,
   },
-  modalSubmitText: {
+  cancelBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  cancelBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  confirmBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  confirmBtnText: {
     color: '#ffffff',
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

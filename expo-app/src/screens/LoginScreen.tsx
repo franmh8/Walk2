@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,17 @@ import {
   Alert,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { User as UserIcon, Lock, Eye, EyeOff, KeyRound, UserPlus, X, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import {
+  User as UserIcon,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound,
+  UserPlus,
+  X,
+  CheckCircle2,
+  AlertTriangle,
+} from 'lucide-react-native';
 
 export function LoginScreen() {
   const { login, register } = useAuth();
@@ -23,7 +33,16 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Estados de validación idénticos a la versión Web
+  const [identifierError, setIdentifierError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [inlineWarning, setInlineWarning] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Refs para inputs
+  const identifierInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
 
   // Modal de Registro
   const [registerVisible, setRegisterVisible] = useState(false);
@@ -37,24 +56,106 @@ export function LoginScreen() {
   const [recoverPhone, setRecoverPhone] = useState('');
   const [recoverSuccess, setRecoverSuccess] = useState(false);
 
-  const handleLogin = async () => {
-    setErrorMessage(null);
-    const cleanId = identifier.trim();
-    const cleanPass = password.trim();
+  // Función de validación de formato (10 dígitos o correo)
+  const isValidIdentifierFormat = (id: string): boolean => {
+    const clean = id.trim();
+    if (clean.includes('@')) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      return emailRegex.test(clean);
+    }
+    return clean.length >= 3;
+  };
 
-    if (!cleanId || !cleanPass) {
-      setErrorMessage('Por favor ingresa tu teléfono o correo y contraseña.');
+  const handleLogin = async () => {
+    setIdentifierError(null);
+    setPasswordError(null);
+    setInlineWarning(null);
+    setSuccessMessage(null);
+
+    const cleanIdentifier = identifier.trim();
+    const cleanPassword = password.trim();
+
+    // 1. Validar campos vacíos
+    if (!cleanIdentifier && !cleanPassword) {
+      setIdentifierError('Campo requerido');
+      setPasswordError('Campo requerido');
+      setInlineWarning('Por favor ingresa tu teléfono o correo y tu contraseña.');
+      identifierInputRef.current?.focus();
       return;
     }
 
+    if (!cleanIdentifier) {
+      setIdentifierError('Campo requerido');
+      setInlineWarning('Por favor ingresa tu teléfono celular o correo institucional.');
+      identifierInputRef.current?.focus();
+      return;
+    }
+
+    if (!cleanPassword) {
+      setPasswordError('Campo requerido');
+      setInlineWarning('Por favor ingresa tu contraseña de acceso.');
+      passwordInputRef.current?.focus();
+      return;
+    }
+
+    // 2. Validar formato previo
+    if (!isValidIdentifierFormat(cleanIdentifier)) {
+      setIdentifierError('Formato inválido');
+      setInlineWarning('El formato del teléfono o correo no es válido (10 dígitos o correo).');
+      identifierInputRef.current?.focus();
+      return;
+    }
+
+    // 3. Ejecutar autenticación
     setLoading(true);
     try {
-      const success = await login(cleanId, cleanPass);
-      if (!success) {
-        setErrorMessage('Credenciales no válidas. Si es tu primera vez, pulsa "Registrarse".');
+      const res = await login(cleanIdentifier, cleanPassword);
+
+      if (!res.success) {
+        const errorCode = res.code || '';
+        const msg = res.message || '';
+
+        // CASO A: Usuario no registrado o no encontrado (Imagen 2)
+        if (
+          errorCode === 'USER_NOT_FOUND' ||
+          msg.toLowerCase().includes('no se encuentra registrado') ||
+          msg.toLowerCase().includes('no encontrado') ||
+          msg.toLowerCase().includes('inexistente')
+        ) {
+          setIdentifierError('Usuario no registrado');
+          setInlineWarning(`El usuario «${cleanIdentifier}» no se encuentra registrado en el sistema.`);
+          identifierInputRef.current?.focus();
+          return;
+        }
+
+        // CASO B: Contraseña incorrecta
+        if (
+          errorCode === 'INVALID_PASSWORD' ||
+          msg.toLowerCase().includes('contraseña incorrecta') ||
+          msg.toLowerCase().includes('contraseña errónea')
+        ) {
+          setPasswordError('Contraseña incorrecta');
+          setInlineWarning('Contraseña incorrecta. Verifica tu contraseña o solicítala nuevamente.');
+          setPassword('');
+          passwordInputRef.current?.focus();
+          return;
+        }
+
+        // CASO C: Límite de intentos excedido
+        if (
+          errorCode === 'RATE_LIMITED' ||
+          msg.toLowerCase().includes('bloqueado') ||
+          msg.toLowerCase().includes('intentos')
+        ) {
+          setInlineWarning('Acceso temporalmente suspendido por múltiples intentos fallidos.');
+          return;
+        }
+
+        // CASO D: Error genérico
+        setInlineWarning(msg || 'Error al validar credenciales en el sistema.');
       }
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Error al conectar con el servidor.');
+      setInlineWarning(err?.message || 'Error de conexión al servidor de autenticación.');
     } finally {
       setLoading(false);
     }
@@ -79,7 +180,7 @@ export function LoginScreen() {
       setRegisterVisible(false);
       setIdentifier(regPhone.trim());
       setPassword(regPassword.trim());
-      Alert.alert('Registro Exitoso', 'Tu usuario táctico C5i ha sido creado. Sesión iniciada.');
+      setSuccessMessage('¡Registro y verificación telefónica completados con éxito! Puedes iniciar sesión.');
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'No se pudo completar el registro.');
     } finally {
@@ -96,7 +197,7 @@ export function LoginScreen() {
     setTimeout(() => {
       setRecoverSuccess(false);
       setRecoverVisible(false);
-      Alert.alert('Código Enviado', 'Se ha enviado un código de restablecimiento temporal.');
+      setSuccessMessage('Se ha enviado el enlace de restablecimiento. Verifica tu bandeja.');
     }, 1500);
   };
 
@@ -109,7 +210,7 @@ export function LoginScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Floating Minimalist Card (Image 2 design) */}
+        {/* Floating Minimalist Card (Image 2 design exact) */}
         <View style={styles.card}>
           {/* Logo C5i */}
           <View style={styles.logoWrapper}>
@@ -124,49 +225,95 @@ export function LoginScreen() {
           <Text style={styles.title}>C5i Walkiet</Text>
           <Text style={styles.subtitle}>Sistema de Radiocomunicación Táctica</Text>
 
-          {/* Error Alert */}
-          {errorMessage && (
-            <View style={styles.errorBanner}>
-              <AlertTriangle size={15} color="#e11d48" />
-              <Text style={styles.errorText}>{errorMessage}</Text>
+          {/* Banner de Éxito */}
+          {successMessage && (
+            <View style={styles.successBanner}>
+              <CheckCircle2 size={16} color="#059669" style={{ marginTop: 1 }} />
+              <Text style={styles.successText}>{successMessage}</Text>
             </View>
           )}
 
-          {/* Campo: Teléfono o Correo */}
+          {/* Banner de Alerta Idéntico a la Web (Imagen 2) */}
+          {inlineWarning && (
+            <View style={styles.warningBanner}>
+              <AlertTriangle size={16} color="#e11d48" style={{ marginTop: 1 }} />
+              <Text style={styles.warningText}>{inlineWarning}</Text>
+            </View>
+          )}
+
+          {/* Campo: Teléfono o Correo con validación idéntica a Web */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Teléfono o Correo</Text>
-            <View style={styles.inputWrapper}>
-              <UserIcon size={18} color="#94a3b8" />
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Teléfono o Correo</Text>
+              {identifierError && (
+                <Text style={styles.fieldErrorText}>{identifierError}</Text>
+              )}
+            </View>
+            <View
+              style={[
+                styles.inputWrapper,
+                identifierError ? styles.inputWrapperError : null,
+              ]}
+            >
+              <UserIcon
+                size={18}
+                color={identifierError ? '#e11d48' : '#94a3b8'}
+              />
               <TextInput
+                ref={identifierInputRef}
                 value={identifier}
                 onChangeText={(text) => {
                   setIdentifier(text);
-                  if (errorMessage) setErrorMessage(null);
+                  if (identifierError) setIdentifierError(null);
+                  if (inlineWarning) setInlineWarning(null);
                 }}
                 placeholder="Ingresa tu teléfono o correo"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="none"
-                style={styles.input}
+                autoCorrect={false}
+                keyboardType="email-address"
+                style={[
+                  styles.input,
+                  identifierError ? styles.inputTextError : null,
+                ]}
               />
             </View>
           </View>
 
-          {/* Campo: Contraseña */}
+          {/* Campo: Contraseña con validación idéntica a Web */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Contraseña</Text>
-            <View style={styles.inputWrapper}>
-              <Lock size={18} color="#94a3b8" />
+            <View style={styles.labelRow}>
+              <Text style={styles.label}>Contraseña</Text>
+              {passwordError && (
+                <Text style={styles.fieldErrorText}>{passwordError}</Text>
+              )}
+            </View>
+            <View
+              style={[
+                styles.inputWrapper,
+                passwordError ? styles.inputWrapperError : null,
+              ]}
+            >
+              <Lock
+                size={18}
+                color={passwordError ? '#e11d48' : '#94a3b8'}
+              />
               <TextInput
+                ref={passwordInputRef}
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
-                  if (errorMessage) setErrorMessage(null);
+                  if (passwordError) setPasswordError(null);
+                  if (inlineWarning) setInlineWarning(null);
                 }}
                 placeholder="Ingresa tu contraseña"
                 placeholderTextColor="#94a3b8"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                style={styles.input}
+                style={[
+                  styles.input,
+                  passwordError ? styles.inputTextError : null,
+                ]}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -321,9 +468,9 @@ export function LoginScreen() {
             </View>
 
             {recoverSuccess && (
-              <View style={styles.successBanner}>
+              <View style={styles.modalSuccessBanner}>
                 <CheckCircle2 size={16} color="#10b981" />
-                <Text style={styles.successText}>Instrucciones enviadas con éxito</Text>
+                <Text style={styles.modalSuccessText}>Instrucciones enviadas con éxito</Text>
               </View>
             )}
 
@@ -343,7 +490,7 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f1f5f9', // Fondo gris claro minimalista exacto
+    backgroundColor: '#f1f5f9', // Fondo gris perla minimalista exacto a Web
   },
   scrollContent: {
     flexGrow: 1,
@@ -390,33 +537,66 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontWeight: '400',
   },
-  errorBanner: {
+
+  // Alerta idéntica a Web (Imagen 2)
+  warningBanner: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffe4e6',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff1f2', // bg-rose-50
     borderWidth: 1,
-    borderColor: '#fecdd3',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    borderColor: '#fecdd3', // border-rose-200
+    borderRadius: 14,
+    padding: 12,
     marginBottom: 16,
     gap: 8,
   },
-  errorText: {
+  warningText: {
     flex: 1,
-    color: '#be123c',
+    color: '#9f1239', // text-rose-800
     fontSize: 12,
     fontWeight: '500',
+    lineHeight: 17,
   },
+
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#ecfdf5', // bg-emerald-50
+    borderWidth: 1,
+    borderColor: '#a7f3d0', // border-emerald-200
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  successText: {
+    flex: 1,
+    color: '#065f46',
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 17,
+  },
+
   fieldGroup: {
     marginBottom: 16,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   label: {
     fontSize: 12,
     fontWeight: '600',
     color: '#334155',
-    marginBottom: 6,
   },
+  fieldErrorText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#e11d48', // rose-600 exacto
+  },
+
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -427,6 +607,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     height: 48,
   },
+  inputWrapperError: {
+    borderColor: '#f43f5e', // border-rose-500
+    backgroundColor: '#fff5f5', // fondo rojizo suave
+  },
   input: {
     flex: 1,
     color: '#0f172a',
@@ -434,6 +618,10 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     paddingVertical: 0,
   },
+  inputTextError: {
+    color: '#881337',
+  },
+
   loginButton: {
     backgroundColor: '#691c32', // Vino C5i exacto
     height: 48,
@@ -479,6 +667,7 @@ const styles = StyleSheet.create({
     color: '#691c32',
     fontWeight: '700',
   },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -539,7 +728,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  successBanner: {
+  modalSuccessBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ecfdf5',
@@ -550,7 +739,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 6,
   },
-  successText: {
+  modalSuccessText: {
     color: '#065f46',
     fontSize: 12,
     fontWeight: '600',

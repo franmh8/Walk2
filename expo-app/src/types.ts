@@ -3,11 +3,19 @@ export interface User {
   phone_number: string;
   name: string;
   correo?: string;
+  password?: string;
   role?: string;
   avatar_url?: string | null;
   status: 'online' | 'offline' | 'transmitting';
   callsign?: string;
   unit?: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  code?: 'USER_NOT_FOUND' | 'INVALID_PASSWORD' | 'RATE_LIMITED' | 'CONNECTION_ERROR' | 'SUCCESS';
+  message?: string;
+  user?: User;
 }
 
 export interface Channel {

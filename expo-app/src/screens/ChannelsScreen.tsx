@@ -51,9 +51,9 @@ export function ChannelsScreen({ navigation }: any) {
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.headerLabel, { color: colors.textMuted }]}>CANALES</Text>
-          <h1 style={[styles.headerTitle, { color: colors.text }] as any}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
             Grupos de Transmisión
-          </h1>
+          </Text>
         </View>
 
         <Pressable

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { RadioProvider } from './src/context/RadioContext';
 import { ChatProvider } from './src/context/ChatContext';
@@ -20,6 +21,11 @@ const Tab = createBottomTabNavigator();
 function MainNavigator() {
   const { user, loading } = useAuth();
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  // En iPhone con barra de inicio (home indicator slider), insets.bottom es ~34px.
+  // Nos aseguramos de tener al menos 28px en iOS para separar los botones del slider de cierre.
+  const safeBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 28 : 10);
 
   if (loading) {
     return (
@@ -71,9 +77,9 @@ function MainNavigator() {
                 backgroundColor: colors.tabBarBackground,
                 borderTopColor: colors.tabBarBorder,
                 borderTopWidth: 1,
-                height: 62,
-                paddingBottom: 8,
-                paddingTop: 6,
+                height: 56 + safeBottom,
+                paddingBottom: safeBottom + 2,
+                paddingTop: 8,
                 elevation: 8,
                 shadowColor: '#000000',
                 shadowOffset: { width: 0, height: -2 },
@@ -85,7 +91,7 @@ function MainNavigator() {
               tabBarLabelStyle: {
                 fontSize: 11,
                 fontWeight: '600',
-                marginTop: -2,
+                marginTop: 2,
               },
             }}
           >
@@ -157,10 +163,12 @@ function MainNavigator() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <MainNavigator />
-      </AuthProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <MainNavigator />
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

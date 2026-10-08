@@ -36,59 +36,6 @@ interface RadioContextType {
 
 const RadioContext = createContext<RadioContextType>({} as any);
 
-const DEFAULT_NETWORK_CHANNELS: Channel[] = [
-  {
-    id: 'chan-central-911',
-    name: 'DESPACHO CENTRAL 911 HIDALGO',
-    is_private: false,
-    category: 'emergencia',
-    access_code: '911001',
-    member_count: 12,
-    active_transmitters_count: 0,
-    is_encrypted: true,
-  },
-  {
-    id: 'chan-patrullaje-pachuca',
-    name: 'PATRULLAJE SECTOR PACHUCA',
-    is_private: false,
-    category: 'general',
-    access_code: '771100',
-    member_count: 8,
-    active_transmitters_count: 0,
-    is_encrypted: true,
-  },
-  {
-    id: 'chan-tactico-goes',
-    name: 'GRUPO TÁCTICO REACCIÓN G.O.E.S.',
-    is_private: true,
-    category: 'tactico',
-    access_code: '771042',
-    member_count: 6,
-    active_transmitters_count: 0,
-    is_encrypted: true,
-  },
-  {
-    id: 'chan-vialidad-estatal',
-    name: 'VIALIDAD Y TRÁNSITO ESTATAL',
-    is_private: false,
-    category: 'vialidad',
-    access_code: '420188',
-    member_count: 5,
-    active_transmitters_count: 0,
-    is_encrypted: true,
-  },
-  {
-    id: 'chan-inteligencia-c5i',
-    name: 'CENTRO INTELIGENCIA Y CÁMARAS',
-    is_private: true,
-    category: 'inteligencia',
-    access_code: '582910',
-    member_count: 4,
-    active_transmitters_count: 0,
-    is_encrypted: true,
-  },
-];
-
 export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -107,13 +54,12 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setAvailableNetworkChannels(parsed);
         return parsed;
       } else {
-        await AsyncStorage.setItem('c5i_network_channels', JSON.stringify(DEFAULT_NETWORK_CHANNELS));
-        setAvailableNetworkChannels(DEFAULT_NETWORK_CHANNELS);
-        return DEFAULT_NETWORK_CHANNELS;
+        setAvailableNetworkChannels([]);
+        return [];
       }
     } catch {
-      setAvailableNetworkChannels(DEFAULT_NETWORK_CHANNELS);
-      return DEFAULT_NETWORK_CHANNELS;
+      setAvailableNetworkChannels([]);
+      return [];
     }
   };
 

@@ -54,14 +54,43 @@ export function LoginScreen() {
   const [recoverPhone, setRecoverPhone] = useState('');
   const [recoverSuccess, setRecoverSuccess] = useState(false);
 
-  // Función de validación de formato (10 dígitos o correo)
-  const isValidIdentifierFormat = (id: string): boolean => {
+  // Función de validación de formato (10 dígitos en teléfono o correo con dominio válido)
+  const validateIdentifier = (id: string): { valid: boolean; errorMsg: string; warningMsg: string } => {
     const clean = id.trim();
+    if (!clean) {
+      return { valid: false, errorMsg: 'Campo requerido', warningMsg: 'Por favor ingresa tu teléfono o correo.' };
+    }
     if (clean.includes('@')) {
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      return emailRegex.test(clean);
+      if (!emailRegex.test(clean)) {
+        return {
+          valid: false,
+          errorMsg: 'Dominio inválido',
+          warningMsg: 'Ingresa un correo con un dominio válido (ej. usuario@dominio.com).',
+        };
+      }
+      return { valid: true, errorMsg: '', warningMsg: '' };
     }
-    return clean.length >= 3;
+    // Si contiene dígitos o no tiene @, validamos como número celular
+    const digitsOnly = clean.replace(/\D/g, '');
+    if (digitsOnly.length > 0 || /^\d+$/.test(clean)) {
+      if (digitsOnly.length !== 10) {
+        return {
+          valid: false,
+          errorMsg: 'Debe tener 10 dígitos',
+          warningMsg: 'El teléfono debe contener exactamente 10 dígitos numéricos.',
+        };
+      }
+      return { valid: true, errorMsg: '', warningMsg: '' };
+    }
+    if (clean.length < 3) {
+      return {
+        valid: false,
+        errorMsg: 'Mínimo 3 caracteres',
+        warningMsg: 'El usuario debe contener al menos 3 caracteres.',
+      };
+    }
+    return { valid: true, errorMsg: '', warningMsg: '' };
   };
 
   const handleLogin = async () => {
@@ -96,10 +125,11 @@ export function LoginScreen() {
       return;
     }
 
-    // 2. Validar formato previo
-    if (!isValidIdentifierFormat(cleanIdentifier)) {
-      setIdentifierError('Formato inválido');
-      setInlineWarning('El formato del teléfono o correo no es válido (10 dígitos o correo).');
+    // 2. Validar formato previo (10 dígitos exactos o correo válido con dominio)
+    const formatCheck = validateIdentifier(cleanIdentifier);
+    if (!formatCheck.valid) {
+      setIdentifierError(formatCheck.errorMsg);
+      setInlineWarning(formatCheck.warningMsg);
       identifierInputRef.current?.focus();
       return;
     }
@@ -203,10 +233,12 @@ export function LoginScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         {/* Floating Minimalist Card (Image 2 design exact) */}
         <View style={styles.card}>
@@ -468,9 +500,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 42 : 24,
+    paddingBottom: 40,
   },
   card: {
     width: '100%',
@@ -479,8 +513,8 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 26,
-    paddingVertical: 32,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,

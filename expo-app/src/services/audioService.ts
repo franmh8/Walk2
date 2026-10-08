@@ -1,15 +1,43 @@
 import * as Haptics from 'expo-haptics';
+import { NativeModules } from 'react-native';
 
-// Safe lazy loading of expo-av to prevent crash if ExponentAV is missing in Expo Go
+// Safe check to avoid [runtime not ready]: Error: Cannot find native module 'ExponentAV' in Expo Go
 let AudioModule: any = null;
+
+function hasNativeExponentAV(): boolean {
+  try {
+    // 1. Check React Native NativeModules
+    if (NativeModules && (NativeModules.ExponentAV || NativeModules.ExponentAudio)) {
+      return true;
+    }
+    // 2. Check global.ExpoModules (Expo Modules API)
+    const expoModules = (global as any)?.ExpoModules;
+    if (expoModules && (expoModules.ExponentAV || expoModules.ExpoAudio)) {
+      return true;
+    }
+    // 3. Try expo-modules-core requireOptionalNativeModule without throwing
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { requireOptionalNativeModule } = require('expo-modules-core');
+      if (typeof requireOptionalNativeModule === 'function') {
+        const mod = requireOptionalNativeModule('ExponentAV');
+        if (mod) return true;
+      }
+    } catch (_) {}
+  } catch (_) {}
+  return false;
+}
+
 try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const expoAv = require('expo-av');
-  if (expoAv && expoAv.Audio) {
-    AudioModule = expoAv.Audio;
+  if (hasNativeExponentAV()) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const expoAv = require('expo-av');
+    if (expoAv && expoAv.Audio) {
+      AudioModule = expoAv.Audio;
+    }
   }
 } catch (err) {
-  console.warn('[C5i AudioService] ExponentAV no encontrado en este binario de Expo Go. Modo PTT simulado activo.');
+  // Fallback to resilient simulated mode
 }
 
 let currentRecording: any = null;

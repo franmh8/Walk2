@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import {
   X,
@@ -54,6 +55,7 @@ export function RegisterModal({ visible, onClose, onSuccess }: RegisterModalProp
   const [generatedCode, setGeneratedCode] = useState('');
   const [smsDigits, setSmsDigits] = useState(['', '', '', '', '', '']);
   const digitRefs = useRef<Array<TextInput | null>>([]);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [resendTimer, setResendTimer] = useState(0);
 
   // Errors & Loading
@@ -90,21 +92,30 @@ export function RegisterModal({ visible, onClose, onSuccess }: RegisterModalProp
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  // Password validation criteria
+  // Password validation criteria (5 reglas idénticas a la versión Web)
   const pwdCriteria = {
-    minLength: password.length >= 8,
+    hasMinLength: password.length >= 8,
     hasUpper: /[A-Z]/.test(password),
     hasLower: /[a-z]/.test(password),
-    hasNumber: /\d/.test(password),
+    hasNumber: /[0-9]/.test(password),
     hasSpecial: /[^A-Za-z0-9]/.test(password),
     matchesConfirm: password.length > 0 && password === confirmPassword,
   };
+
   const isPasswordStrong =
-    pwdCriteria.minLength &&
+    pwdCriteria.hasMinLength &&
     pwdCriteria.hasUpper &&
     pwdCriteria.hasLower &&
     pwdCriteria.hasNumber &&
     pwdCriteria.hasSpecial;
+
+  const rules = [
+    { key: 'hasUpper', label: 'Una letra mayúscula (A-Z)', met: pwdCriteria.hasUpper },
+    { key: 'hasLower', label: 'Una letra minúscula (a-z)', met: pwdCriteria.hasLower },
+    { key: 'hasNumber', label: 'Al menos un número (0-9)', met: pwdCriteria.hasNumber },
+    { key: 'hasSpecial', label: 'Un carácter especial (!@#$%...*)', met: pwdCriteria.hasSpecial },
+    { key: 'hasMinLength', label: 'Mínimo 8 caracteres', met: pwdCriteria.hasMinLength },
+  ];
 
   // Validation function for step 1
   const validateForm = () => {
@@ -119,29 +130,31 @@ export function RegisterModal({ visible, onClose, onSuccess }: RegisterModalProp
       newErrors.name = 'Mínimo 3 caracteres.';
     }
 
+    // 1. Validar exactamente 10 dígitos numéricos en celular
     const cleanPhone = phoneNumber.replace(/\D/g, '').trim();
     if (!cleanPhone) {
-      newErrors.phone_number = 'El teléfono es obligatorio.';
+      newErrors.phone_number = 'El número de teléfono es obligatorio.';
     } else if (cleanPhone.length !== 10) {
-      newErrors.phone_number = 'Debe tener exactamente 10 dígitos.';
+      newErrors.phone_number = 'El número debe contener exactamente 10 dígitos.';
     }
 
-    const cleanEmail = correo.trim();
+    // 2. Validar correo con formato y dominio válido (ej. usuario@dominio.com)
+    const cleanEmail = correo.trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     if (!cleanEmail) {
-      newErrors.correo = 'El correo es obligatorio.';
-    } else {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(cleanEmail)) {
-        newErrors.correo = 'Formato de correo no válido.';
-      }
+      newErrors.correo = 'El correo electrónico es obligatorio.';
+    } else if (!emailRegex.test(cleanEmail)) {
+      newErrors.correo = 'Ingresa un correo con un dominio válido (ej. usuario@dominio.com).';
     }
 
+    // 3. Validar contraseña con todos los requisitos
     if (!password) {
       newErrors.password = 'La contraseña es obligatoria.';
     } else if (!isPasswordStrong) {
-      newErrors.password = 'Cumple los requisitos de seguridad.';
+      newErrors.password = 'Cumple todos los requisitos de seguridad.';
     }
 
+    // 4. Validar confirmación de contraseña
     if (!confirmPassword) {
       newErrors.confirm_password = 'Confirma tu contraseña.';
     } else if (!pwdCriteria.matchesConfirm) {
@@ -202,7 +215,7 @@ export function RegisterModal({ visible, onClose, onSuccess }: RegisterModalProp
     try {
       const cleanPhone = phoneNumber.replace(/\D/g, '').trim();
       const cleanName = name.trim();
-      const cleanEmail = correo.trim();
+      const cleanEmail = correo.trim().toLowerCase();
       const callsign = `PATRULLA-${cleanPhone.slice(-3)}`;
 
       await register({
@@ -237,330 +250,383 @@ export function RegisterModal({ visible, onClose, onSuccess }: RegisterModalProp
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          {/* Header con Badge de UserPlus idéntico a Web (Imagen 2) */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View style={styles.iconBadge}>
-                <UserPlus size={20} color="#691c32" />
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.card}>
+            {/* Header con Badge de UserPlus idéntico a Web (Imagen 2) */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.iconBadge}>
+                  <UserPlus size={20} color="#691c32" />
+                </View>
+                <Text style={styles.title}>Registro</Text>
               </View>
-              <Text style={styles.title}>Registro</Text>
+
+              <Pressable onPress={onClose} hitSlop={10} style={styles.closeButton}>
+                <X size={18} color="#94a3b8" />
+              </Pressable>
             </View>
 
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeButton}>
-              <X size={18} color="#94a3b8" />
-            </Pressable>
-          </View>
-
-          {/* Banner de Error General */}
-          {generalError && (
-            <View style={styles.generalErrorBanner}>
-              <AlertTriangle size={15} color="#e11d48" />
-              <Text style={styles.generalErrorText}>{generalError}</Text>
-            </View>
-          )}
-
-          {/* ======================================================== */}
-          {/* PASO 1: FORMULARIO PRINCIPAL                             */}
-          {/* ======================================================== */}
-          {step === 'form' && (
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {/* Campo 1: Nombre completo */}
-              <View style={styles.fieldGroup}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>Nombre completo</Text>
-                  {errors.name && <Text style={styles.errorLabel}>{errors.name}</Text>}
-                </View>
-                <View style={[styles.inputWrapper, errors.name ? styles.inputWrapperError : null]}>
-                  <UserIcon size={18} color={errors.name ? '#e11d48' : '#94a3b8'} />
-                  <TextInput
-                    value={name}
-                    onChangeText={(val) => {
-                      setName(val);
-                      if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
-                    }}
-                    placeholder="Roberto Morales"
-                    placeholderTextColor="#94a3b8"
-                    style={styles.input}
-                  />
-                </View>
+            {/* Banner de Error General */}
+            {generalError && (
+              <View style={styles.generalErrorBanner}>
+                <AlertTriangle size={15} color="#e11d48" />
+                <Text style={styles.generalErrorText}>{generalError}</Text>
               </View>
+            )}
 
-              {/* Campo 2: Teléfono (10 dígitos) */}
-              <View style={styles.fieldGroup}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>Teléfono (10 dígitos)</Text>
-                  {errors.phone_number && <Text style={styles.errorLabel}>{errors.phone_number}</Text>}
-                </View>
-                <View style={[styles.inputWrapper, errors.phone_number ? styles.inputWrapperError : null]}>
-                  <Phone size={18} color={errors.phone_number ? '#e11d48' : '#94a3b8'} />
-                  <TextInput
-                    value={phoneNumber}
-                    onChangeText={(val) => {
-                      setPhoneNumber(val);
-                      if (errors.phone_number) setErrors((prev) => ({ ...prev, phone_number: '' }));
-                    }}
-                    placeholder="7712345678"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-
-              {/* Campo 3: Correo electrónico */}
-              <View style={styles.fieldGroup}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.label}>Correo electrónico</Text>
-                  {errors.correo && <Text style={styles.errorLabel}>{errors.correo}</Text>}
-                </View>
-                <View style={[styles.inputWrapper, errors.correo ? styles.inputWrapperError : null]}>
-                  <Mail size={18} color={errors.correo ? '#e11d48' : '#94a3b8'} />
-                  <TextInput
-                    value={correo}
-                    onChangeText={(val) => {
-                      setCorreo(val);
-                      if (errors.correo) setErrors((prev) => ({ ...prev, correo: '' }));
-                    }}
-                    placeholder="usuario@dominio.com"
-                    placeholderTextColor="#94a3b8"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-
-              {/* Fila con 2 columnas: Contraseña y Confirmar (Exacto a Imagen 2) */}
-              <View style={styles.rowTwoCols}>
-                {/* Columna Izquierda: Contraseña */}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Contraseña</Text>
-                  <View style={[styles.inputWrapperHalf, errors.password ? styles.inputWrapperError : null]}>
-                    <Lock size={15} color={errors.password ? '#e11d48' : '#94a3b8'} />
+            {/* ======================================================== */}
+            {/* PASO 1: FORMULARIO PRINCIPAL                             */}
+            {/* ======================================================== */}
+            {step === 'form' && (
+              <ScrollView
+                ref={scrollViewRef}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 24 }}
+              >
+                {/* Campo 1: Nombre completo */}
+                <View style={styles.fieldGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>Nombre completo</Text>
+                    {errors.name && <Text style={styles.errorLabel}>{errors.name}</Text>}
+                  </View>
+                  <View style={[styles.inputWrapper, errors.name ? styles.inputWrapperError : null]}>
+                    <UserIcon size={18} color={errors.name ? '#e11d48' : '#94a3b8'} />
                     <TextInput
-                      value={password}
+                      value={name}
                       onChangeText={(val) => {
-                        setPassword(val);
-                        if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+                        setName(val);
+                        if (errors.name) setErrors((prev) => ({ ...prev, name: '' }));
                       }}
-                      placeholder="Contraseña"
+                      placeholder="Roberto Morales"
                       placeholderTextColor="#94a3b8"
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      style={styles.inputHalf}
+                      style={styles.input}
                     />
-                    <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={6}>
-                      {showPassword ? (
-                        <EyeOff size={15} color="#94a3b8" />
-                      ) : (
-                        <Eye size={15} color="#94a3b8" />
-                      )}
-                    </Pressable>
                   </View>
                 </View>
 
-                {/* Columna Derecha: Confirmar */}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Confirmar</Text>
-                  <View style={[styles.inputWrapperHalf, errors.confirm_password ? styles.inputWrapperError : null]}>
-                    <Lock size={15} color={errors.confirm_password ? '#e11d48' : '#94a3b8'} />
+                {/* Campo 2: Teléfono (10 dígitos exactos) */}
+                <View style={styles.fieldGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>Teléfono (10 dígitos)</Text>
+                    {errors.phone_number && <Text style={styles.errorLabel}>{errors.phone_number}</Text>}
+                  </View>
+                  <View style={[styles.inputWrapper, errors.phone_number ? styles.inputWrapperError : null]}>
+                    <Phone size={18} color={errors.phone_number ? '#e11d48' : '#94a3b8'} />
                     <TextInput
-                      value={confirmPassword}
+                      value={phoneNumber}
                       onChangeText={(val) => {
-                        setConfirmPassword(val);
-                        if (errors.confirm_password) setErrors((prev) => ({ ...prev, confirm_password: '' }));
+                        const digitsOnly = val.replace(/\D/g, '').slice(0, 10);
+                        setPhoneNumber(digitsOnly);
+                        if (errors.phone_number) setErrors((prev) => ({ ...prev, phone_number: '' }));
                       }}
-                      placeholder="Repite"
+                      placeholder="7712345678"
                       placeholderTextColor="#94a3b8"
-                      secureTextEntry={!showConfirmPassword}
-                      autoCapitalize="none"
-                      style={styles.inputHalf}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      style={styles.input}
                     />
-                    <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} hitSlop={6}>
-                      {showConfirmPassword ? (
-                        <EyeOff size={15} color="#94a3b8" />
-                      ) : (
-                        <Eye size={15} color="#94a3b8" />
-                      )}
-                    </Pressable>
                   </View>
                 </View>
-              </View>
 
-              {/* Checklist de requisitos de contraseña si se está escribiendo */}
-              {password.length > 0 && (
-                <View style={styles.pwdChecklist}>
-                  <Text style={styles.checklistTitle}>Requisitos de seguridad:</Text>
-                  <View style={styles.checkItem}>
-                    <Check size={12} color={pwdCriteria.minLength ? '#10b981' : '#94a3b8'} />
-                    <Text style={[styles.checkText, pwdCriteria.minLength && styles.checkTextActive]}>
-                      Al menos 8 caracteres
-                    </Text>
+                {/* Campo 3: Correo electrónico (Dominio válido) */}
+                <View style={styles.fieldGroup}>
+                  <View style={styles.labelRow}>
+                    <Text style={styles.label}>Correo electrónico</Text>
+                    {errors.correo && <Text style={styles.errorLabel}>{errors.correo}</Text>}
                   </View>
-                  <View style={styles.checkItem}>
-                    <Check size={12} color={pwdCriteria.hasUpper && pwdCriteria.hasLower ? '#10b981' : '#94a3b8'} />
-                    <Text style={[styles.checkText, pwdCriteria.hasUpper && pwdCriteria.hasLower && styles.checkTextActive]}>
-                      Mayúsculas y minúsculas
-                    </Text>
+                  <View style={[styles.inputWrapper, errors.correo ? styles.inputWrapperError : null]}>
+                    <Mail size={18} color={errors.correo ? '#e11d48' : '#94a3b8'} />
+                    <TextInput
+                      value={correo}
+                      onChangeText={(val) => {
+                        setCorreo(val);
+                        if (errors.correo) setErrors((prev) => ({ ...prev, correo: '' }));
+                      }}
+                      placeholder="usuario@dominio.com"
+                      placeholderTextColor="#94a3b8"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      style={styles.input}
+                    />
                   </View>
-                  <View style={styles.checkItem}>
-                    <Check size={12} color={pwdCriteria.hasNumber && pwdCriteria.hasSpecial ? '#10b981' : '#94a3b8'} />
-                    <Text style={[styles.checkText, pwdCriteria.hasNumber && pwdCriteria.hasSpecial && styles.checkTextActive]}>
-                      Número y símbolo especial (!@#$%)
-                    </Text>
-                  </View>
-                  {confirmPassword.length > 0 && (
-                    <View style={styles.checkItem}>
-                      <Check size={12} color={pwdCriteria.matchesConfirm ? '#10b981' : '#94a3b8'} />
-                      <Text style={[styles.checkText, pwdCriteria.matchesConfirm && styles.checkTextActive]}>
-                        Contraseñas coinciden
-                      </Text>
+                </View>
+
+                {/* Fila con 2 columnas: Contraseña y Confirmar */}
+                <View style={styles.rowTwoCols}>
+                  {/* Columna Izquierda: Contraseña */}
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.label}>Contraseña</Text>
                     </View>
-                  )}
+                    <View style={[styles.inputWrapperHalf, errors.password ? styles.inputWrapperError : null]}>
+                      <Lock size={15} color={errors.password ? '#e11d48' : '#94a3b8'} />
+                      <TextInput
+                        value={password}
+                        onChangeText={(val) => {
+                          setPassword(val);
+                          if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+                        }}
+                        onFocus={() => {
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }, 120);
+                        }}
+                        placeholder="Contraseña"
+                        placeholderTextColor="#94a3b8"
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        style={styles.inputHalf}
+                      />
+                      <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={6}>
+                        {showPassword ? (
+                          <EyeOff size={15} color="#94a3b8" />
+                        ) : (
+                          <Eye size={15} color="#94a3b8" />
+                        )}
+                      </Pressable>
+                    </View>
+                    {errors.password && <Text style={styles.errorSubLabel}>{errors.password}</Text>}
+                  </View>
+
+                  {/* Columna Derecha: Confirmar */}
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.label}>Confirmar</Text>
+                    </View>
+                    <View style={[styles.inputWrapperHalf, errors.confirm_password ? styles.inputWrapperError : null]}>
+                      <Lock size={15} color={errors.confirm_password ? '#e11d48' : '#94a3b8'} />
+                      <TextInput
+                        value={confirmPassword}
+                        onChangeText={(val) => {
+                          setConfirmPassword(val);
+                          if (errors.confirm_password) setErrors((prev) => ({ ...prev, confirm_password: '' }));
+                        }}
+                        onFocus={() => {
+                          setTimeout(() => {
+                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                          }, 120);
+                        }}
+                        placeholder="Repite"
+                        placeholderTextColor="#94a3b8"
+                        secureTextEntry={!showConfirmPassword}
+                        autoCapitalize="none"
+                        style={styles.inputHalf}
+                      />
+                      <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} hitSlop={6}>
+                        {showConfirmPassword ? (
+                          <EyeOff size={15} color="#94a3b8" />
+                        ) : (
+                          <Eye size={15} color="#94a3b8" />
+                        )}
+                      </Pressable>
+                    </View>
+                    {errors.confirm_password && <Text style={styles.errorSubLabel}>{errors.confirm_password}</Text>}
+                  </View>
                 </View>
-              )}
 
-              {/* Botones inferiores: Cancelar y Continuar (Exacto a Imagen 2) */}
-              <View style={styles.actionsRow}>
-                <Pressable onPress={onClose} style={styles.cancelButton}>
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </Pressable>
+                {/* Requisitos de seguridad de contraseña idénticos a la versión Web */}
+                {(password.length > 0 || confirmPassword.length > 0) && (
+                  <View style={styles.pwdChecklist}>
+                    <Text style={styles.checklistTitle}>Requisitos de seguridad:</Text>
+                    <View style={styles.rulesGrid}>
+                      {rules.map((rule) => (
+                        <View key={rule.key} style={styles.checkItem}>
+                          <View style={[styles.checkCircle, rule.met && styles.checkCircleActive]}>
+                            {rule.met ? (
+                              <Check size={8} color="#ffffff" strokeWidth={3} />
+                            ) : (
+                              <View style={styles.checkDot} />
+                            )}
+                          </View>
+                          <Text style={[styles.checkText, rule.met && styles.checkTextActive]}>
+                            {rule.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
 
-                <Pressable onPress={handleProceedToVerification} style={styles.continueButton}>
-                  <Text style={styles.continueButtonText}>Continuar</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-          )}
+                    {confirmPassword.length > 0 && (
+                      <View style={styles.confirmCheckRow}>
+                        <View
+                          style={[
+                            styles.checkCircle,
+                            pwdCriteria.matchesConfirm ? styles.checkCircleActive : styles.checkCircleError,
+                          ]}
+                        >
+                          {pwdCriteria.matchesConfirm ? (
+                            <Check size={8} color="#ffffff" strokeWidth={3} />
+                          ) : (
+                            <X size={8} color="#ffffff" strokeWidth={3} />
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.checkText,
+                            pwdCriteria.matchesConfirm ? styles.checkTextActive : styles.checkTextError,
+                          ]}
+                        >
+                          {pwdCriteria.matchesConfirm
+                            ? 'Las contraseñas coinciden exactamente'
+                            : 'Las contraseñas no coinciden todavía'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
 
-          {/* ======================================================== */}
-          {/* PASO 2: VERIFICACIÓN SMS                                 */}
-          {/* ======================================================== */}
-          {step === 'sms_verification' && (
-            <View style={styles.stepContainer}>
-              <View style={styles.stepTopRow}>
-                <Pressable onPress={() => setStep('form')} style={styles.backButton}>
-                  <ArrowLeft size={16} color="#64748b" />
-                  <Text style={styles.backText}>Volver</Text>
-                </Pressable>
-
-                {generatedCode ? (
-                  <Pressable
-                    onPress={() => setSmsDigits(generatedCode.split(''))}
-                    style={styles.autoFillBadge}
-                  >
-                    <Text style={styles.autoFillText}>Código: {generatedCode}</Text>
+                {/* Botones inferiores: Cancelar y Continuar */}
+                <View style={styles.actionsRow}>
+                  <Pressable onPress={onClose} style={styles.cancelButton}>
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
                   </Pressable>
-                ) : null}
-              </View>
 
-              {errors.sms && (
-                <View style={styles.smsErrorBanner}>
-                  <AlertTriangle size={15} color="#e11d48" />
-                  <Text style={styles.smsErrorText}>{errors.sms}</Text>
+                  <Pressable onPress={handleProceedToVerification} style={styles.continueButton}>
+                    <Text style={styles.continueButtonText}>Continuar</Text>
+                  </Pressable>
                 </View>
-              )}
+              </ScrollView>
+            )}
 
-              <Text style={styles.smsTitle}>Código de verificación (6 dígitos)</Text>
-              <Text style={styles.smsSubtitle}>
-                Enviado al teléfono {phoneNumber}
-              </Text>
+            {/* ======================================================== */}
+            {/* PASO 2: VERIFICACIÓN SMS                                 */}
+            {/* ======================================================== */}
+            {step === 'sms_verification' && (
+              <View style={styles.stepContainer}>
+                <View style={styles.stepTopRow}>
+                  <Pressable onPress={() => setStep('form')} style={styles.backButton}>
+                    <ArrowLeft size={16} color="#64748b" />
+                    <Text style={styles.backText}>Volver</Text>
+                  </Pressable>
 
-              {/* Cajas de dígitos OTP */}
-              <View style={styles.otpRow}>
-                {smsDigits.map((digit, idx) => (
-                  <TextInput
-                    key={idx}
-                    ref={(ref) => {
-                      digitRefs.current[idx] = ref;
-                    }}
-                    value={digit}
-                    onChangeText={(val) => handleDigitChange(idx, val)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
-                  />
-                ))}
+                  {generatedCode ? (
+                    <Pressable
+                      onPress={() => setSmsDigits(generatedCode.split(''))}
+                      style={styles.autoFillBadge}
+                    >
+                      <Text style={styles.autoFillText}>Código: {generatedCode}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {errors.sms && (
+                  <View style={styles.smsErrorBanner}>
+                    <AlertTriangle size={15} color="#e11d48" />
+                    <Text style={styles.smsErrorText}>{errors.sms}</Text>
+                  </View>
+                )}
+
+                <Text style={styles.smsTitle}>Código de verificación (6 dígitos)</Text>
+                <Text style={styles.smsSubtitle}>
+                  Enviado al teléfono {phoneNumber}
+                </Text>
+
+                {/* Cajas de dígitos OTP */}
+                <View style={styles.otpRow}>
+                  {smsDigits.map((digit, idx) => (
+                    <TextInput
+                      key={idx}
+                      ref={(ref) => {
+                        digitRefs.current[idx] = ref;
+                      }}
+                      value={digit}
+                      onChangeText={(val) => handleDigitChange(idx, val)}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      style={[styles.otpBox, digit ? styles.otpBoxFilled : null]}
+                    />
+                  ))}
+                </View>
+
+                {/* Reenviar código */}
+                <View style={styles.resendRow}>
+                  <Pressable
+                    onPress={handleResendSms}
+                    disabled={resendTimer > 0}
+                    style={styles.resendButton}
+                  >
+                    <RotateCw size={13} color={resendTimer > 0 ? '#94a3b8' : '#0284c7'} />
+                    <Text style={[styles.resendText, resendTimer > 0 && styles.resendTextDisabled]}>
+                      {resendTimer > 0 ? `Reenviar en ${resendTimer}s` : 'Reenviar código'}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {/* Acciones de Validación */}
+                <View style={styles.actionsRow}>
+                  <Pressable onPress={onClose} style={styles.cancelButton}>
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={handleExecuteVerification}
+                    disabled={loading || smsDigits.join('').trim().length !== 6}
+                    style={[
+                      styles.continueButton,
+                      (loading || smsDigits.join('').trim().length !== 6) && styles.buttonDisabled,
+                    ]}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.continueButtonText}>Validar</Text>
+                    )}
+                  </Pressable>
+                </View>
               </View>
+            )}
 
-              {/* Reenviar código */}
-              <View style={styles.resendRow}>
-                <Pressable
-                  onPress={handleResendSms}
-                  disabled={resendTimer > 0}
-                  style={styles.resendButton}
-                >
-                  <RotateCw size={13} color={resendTimer > 0 ? '#94a3b8' : '#0284c7'} />
-                  <Text style={[styles.resendText, resendTimer > 0 && styles.resendTextDisabled]}>
-                    {resendTimer > 0 ? `Reenviar en ${resendTimer}s` : 'Reenviar código'}
-                  </Text>
-                </Pressable>
+            {/* ======================================================== */}
+            {/* PASO 3: ÉXITO                                            */}
+            {/* ======================================================== */}
+            {step === 'success' && (
+              <View style={styles.successContainer}>
+                <View style={styles.successIconCircle}>
+                  <CheckCircle2 size={36} color="#059669" />
+                </View>
+                <Text style={styles.successTitle}>¡Registro completado!</Text>
+                <Text style={styles.successSubtitle}>
+                  Número validado. Redirigiendo al inicio de sesión...
+                </Text>
               </View>
-
-              {/* Acciones de Validación */}
-              <View style={styles.actionsRow}>
-                <Pressable onPress={onClose} style={styles.cancelButton}>
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={handleExecuteVerification}
-                  disabled={loading || smsDigits.join('').trim().length !== 6}
-                  style={[
-                    styles.continueButton,
-                    (loading || smsDigits.join('').trim().length !== 6) && styles.buttonDisabled,
-                  ]}
-                >
-                  {loading ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text style={styles.continueButtonText}>Validar</Text>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          )}
-
-          {/* ======================================================== */}
-          {/* PASO 3: ÉXITO                                            */}
-          {/* ======================================================== */}
-          {step === 'success' && (
-            <View style={styles.successContainer}>
-              <View style={styles.successIconCircle}>
-                <CheckCircle2 size={36} color="#059669" />
-              </View>
-              <Text style={styles.successTitle}>¡Registro completado!</Text>
-              <Text style={styles.successSubtitle}>
-                Número validado. Redirigiendo al inicio de sesión...
-              </Text>
-            </View>
-          )}
+            )}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)', // Backdrop difuminado idéntico a Web
-    justifyContent: 'center',
+    justifyContent: 'flex-start', // Posiciona el modal más arriba para que el teclado no tape los campos
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 36 : 16, // Desplaza hacia arriba para dar espacio al teclado
+    paddingBottom: 16,
   },
   card: {
     width: '100%',
     maxWidth: 380,
+    maxHeight: '94%',
     backgroundColor: '#ffffff',
-    borderRadius: 28,
+    borderRadius: 26,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    paddingHorizontal: 24,
-    paddingVertical: 26,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
@@ -571,7 +637,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -616,7 +682,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   fieldGroup: {
-    marginBottom: 14,
+    marginBottom: 13,
   },
   labelRow: {
     flexDirection: 'row',
@@ -628,12 +694,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#334155',
-    marginBottom: 5,
   },
   errorLabel: {
     fontSize: 11,
     fontWeight: '600',
     color: '#e11d48',
+  },
+  errorSubLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#e11d48',
+    marginTop: 3,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -646,7 +717,8 @@ const styles = StyleSheet.create({
     height: 46,
   },
   inputWrapperError: {
-    borderColor: '#f43f5e',
+    borderColor: '#e11d48',
+    borderWidth: 1.5,
     backgroundColor: '#ffffff',
   },
   input: {
@@ -659,7 +731,7 @@ const styles = StyleSheet.create({
   rowTwoCols: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   inputWrapperHalf: {
     flexDirection: 'row',
@@ -684,19 +756,44 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 12,
     padding: 10,
-    marginBottom: 16,
-    gap: 4,
+    marginBottom: 14,
+    gap: 5,
   },
   checklistTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#475569',
-    marginBottom: 2,
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+  },
+  rulesGrid: {
+    gap: 4,
   },
   checkItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
+  },
+  checkCircle: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkCircleActive: {
+    backgroundColor: '#10b981',
+  },
+  checkCircleError: {
+    backgroundColor: '#f43f5e',
+  },
+  checkDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#94a3b8',
   },
   checkText: {
     fontSize: 11,
@@ -706,10 +803,23 @@ const styles = StyleSheet.create({
     color: '#059669',
     fontWeight: '600',
   },
+  checkTextError: {
+    color: '#e11d48',
+    fontWeight: '600',
+  },
+  confirmCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 4,
+    paddingTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 8,
+    marginTop: 6,
   },
   cancelButton: {
     flex: 1,
@@ -827,7 +937,7 @@ const styles = StyleSheet.create({
   },
   otpBoxFilled: {
     borderColor: '#691c32',
-    backgroundColor: '#fdf2f4',
+    backgroundColor: '#ffffff',
   },
   resendRow: {
     alignItems: 'center',

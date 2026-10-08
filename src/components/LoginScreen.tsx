@@ -248,7 +248,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 placeholder="Ingresa tu teléfono o correo"
                 className={`w-full bg-slate-50 dark:bg-[#0b0f19] border rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none transition-all font-sans ${
                   identifierError
-                    ? 'border-rose-500/80 bg-rose-50/50 dark:bg-rose-950/15 ring-2 ring-rose-500/20 text-rose-900 dark:text-rose-100'
+                    ? 'border-rose-500 bg-white dark:bg-[#0b0f19] ring-1 ring-rose-500/20 text-slate-900 dark:text-slate-100'
                     : 'border-slate-300 dark:border-slate-700/70 focus:border-[#8a1a36] dark:focus:border-[#a62846] focus:ring-1 focus:ring-[#8a1a36]/25 dark:focus:ring-[#a62846]/30'
                 }`}
               />
@@ -288,7 +288,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 placeholder="Ingresa tu contraseña"
                 className={`w-full bg-slate-50 dark:bg-[#0b0f19] border rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none transition-all ${
                   passwordError
-                    ? 'border-rose-500/80 bg-rose-50/50 dark:bg-rose-950/15 ring-2 ring-rose-500/20 text-rose-900 dark:text-rose-100'
+                    ? 'border-rose-500 bg-white dark:bg-[#0b0f19] ring-1 ring-rose-500/20 text-slate-900 dark:text-slate-100'
                     : 'border-slate-300 dark:border-slate-700/70 focus:border-[#8a1a36] dark:focus:border-[#a62846] focus:ring-1 focus:ring-[#8a1a36]/25 dark:focus:ring-[#a62846]/30'
                 }`}
               />

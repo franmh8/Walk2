@@ -24,10 +24,12 @@ import {
   X,
   CheckCircle2,
   AlertTriangle,
+  Phone,
 } from 'lucide-react-native';
+import { RegisterModal } from '../components/RegisterModal';
 
 export function LoginScreen() {
-  const { login, register } = useAuth();
+  const { login } = useAuth();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -46,10 +48,6 @@ export function LoginScreen() {
 
   // Modal de Registro
   const [registerVisible, setRegisterVisible] = useState(false);
-  const [regName, setRegName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regCallsign, setRegCallsign] = useState('');
-  const [regPassword, setRegPassword] = useState('');
 
   // Modal de Recuperación
   const [recoverVisible, setRecoverVisible] = useState(false);
@@ -356,81 +354,15 @@ export function LoginScreen() {
         </View>
       </ScrollView>
 
-      {/* Modal de Registro Limpio */}
-      <Modal
+      {/* Modal de Registro Idéntico a Web (Paso 1 Formulario + Paso 2 SMS OTP + Paso 3 Éxito) */}
+      <RegisterModal
         visible={registerVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setRegisterVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Registro de Unidad C5i</Text>
-              <Pressable onPress={() => setRegisterVisible(false)}>
-                <X size={20} color="#64748b" />
-              </Pressable>
-            </View>
-
-            <Text style={styles.modalSubtitle}>Crea una credencial táctica limpia</Text>
-
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Nombre y Apellidos</Text>
-              <TextInput
-                value={regName}
-                onChangeText={setRegName}
-                placeholder="Ej. Oficial Rodrigo Mendoza"
-                placeholderTextColor="#94a3b8"
-                style={styles.modalInput}
-              />
-            </View>
-
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Teléfono</Text>
-              <TextInput
-                value={regPhone}
-                onChangeText={setRegPhone}
-                placeholder="10 dígitos (ej. 7711234567)"
-                placeholderTextColor="#94a3b8"
-                keyboardType="phone-pad"
-                style={styles.modalInput}
-              />
-            </View>
-
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Indicativo de Radio (Callsign)</Text>
-              <TextInput
-                value={regCallsign}
-                onChangeText={setRegCallsign}
-                placeholder="Ej. PATRULLA-302 / ALFA-1"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="characters"
-                style={styles.modalInput}
-              />
-            </View>
-
-            <View style={styles.modalField}>
-              <Text style={styles.label}>Contraseña</Text>
-              <TextInput
-                value={regPassword}
-                onChangeText={setRegPassword}
-                placeholder="Crea tu contraseña"
-                placeholderTextColor="#94a3b8"
-                secureTextEntry
-                style={styles.modalInput}
-              />
-            </View>
-
-            <Pressable
-              onPress={handleRegisterSubmit}
-              disabled={loading}
-              style={styles.modalButton}
-            >
-              <Text style={styles.modalButtonText}>Completar Registro</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setRegisterVisible(false)}
+        onSuccess={(registeredPhone, msg) => {
+          setIdentifier(registeredPhone);
+          setSuccessMessage(msg);
+        }}
+      />
 
       {/* Modal Recuperar Acceso */}
       <Modal
@@ -442,23 +374,44 @@ export function LoginScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Recuperar Acceso</Text>
-              <Pressable onPress={() => setRecoverVisible(false)}>
-                <X size={20} color="#64748b" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 19,
+                    backgroundColor: '#fdf2f4',
+                    borderWidth: 1,
+                    borderColor: '#fce7eb',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <KeyRound size={18} color="#691c32" />
+                </View>
+                <Text style={styles.modalTitle}>Recuperar acceso</Text>
+              </View>
+              <Pressable onPress={() => setRecoverVisible(false)} hitSlop={10}>
+                <X size={18} color="#94a3b8" />
               </Pressable>
             </View>
 
-            <Text style={styles.modalSubtitle}>Ingresa tu identificador para recibir asistencia C5i</Text>
+            <Text style={styles.modalSubtitle}>
+              Ingresa tu teléfono o correo registrado para recibir asistencia o restablecimiento.
+            </Text>
 
             <View style={styles.modalField}>
               <Text style={styles.label}>Teléfono o Correo</Text>
-              <TextInput
-                value={recoverPhone}
-                onChangeText={setRecoverPhone}
-                placeholder="Teléfono o correo registrado"
-                placeholderTextColor="#94a3b8"
-                style={styles.modalInput}
-              />
+              <View style={styles.inputWrapper}>
+                <Phone size={18} color="#94a3b8" />
+                <TextInput
+                  value={recoverPhone}
+                  onChangeText={setRecoverPhone}
+                  placeholder="Teléfono (10 dígitos) o correo"
+                  placeholderTextColor="#94a3b8"
+                  style={styles.input}
+                />
+              </View>
             </View>
 
             {recoverSuccess && (
@@ -468,12 +421,39 @@ export function LoginScreen() {
               </View>
             )}
 
-            <Pressable
-              onPress={handleRecoverSubmit}
-              style={styles.modalButton}
-            >
-              <Text style={styles.modalButtonText}>Enviar Código</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+              <Pressable
+                onPress={() => setRecoverVisible(false)}
+                style={{
+                  flex: 1,
+                  height: 46,
+                  borderRadius: 14,
+                  backgroundColor: '#f1f5f9',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#334155' }}>
+                  Cancelar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleRecoverSubmit}
+                style={{
+                  flex: 1,
+                  height: 46,
+                  borderRadius: 14,
+                  backgroundColor: '#691c32',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#ffffff' }}>
+                  Enviar Código
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>

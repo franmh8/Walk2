@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -45,6 +46,24 @@ export function LoginScreen() {
   // Refs para inputs
   const identifierInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
+
+  // Escuchar estado del teclado para centrado natural cuando no está activo
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Modal de Registro
   const [registerVisible, setRegisterVisible] = useState(false);
@@ -236,7 +255,10 @@ export function LoginScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isKeyboardVisible ? styles.scrollContentActive : styles.scrollContentCentered,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -500,11 +522,17 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'flex-start',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 42 : 24,
     paddingBottom: 40,
+  },
+  scrollContentCentered: {
+    justifyContent: 'center',
+    paddingTop: 20,
+  },
+  scrollContentActive: {
+    justifyContent: 'flex-start',
+    paddingTop: Platform.OS === 'ios' ? 36 : 16,
   },
   card: {
     width: '100%',

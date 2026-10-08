@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import {
   X,
@@ -57,6 +58,24 @@ export function RegisterModal({ visible, onClose, onSuccess }: RegisterModalProp
   const digitRefs = useRef<Array<TextInput | null>>([]);
   const scrollViewRef = useRef<ScrollView>(null);
   const [resendTimer, setResendTimer] = useState(0);
+
+  // Escuchar estado del teclado para mantener centrado por defecto y solo subir al escribir
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Errors & Loading
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -255,7 +274,12 @@ export function RegisterModal({ visible, onClose, onSuccess }: RegisterModalProp
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
       >
-        <View style={styles.overlay}>
+        <View
+          style={[
+            styles.overlay,
+            isKeyboardVisible ? styles.overlayActive : styles.overlayCentered,
+          ]}
+        >
           <View style={styles.card}>
             {/* Header con Badge de UserPlus idéntico a Web (Imagen 2) */}
             <View style={styles.header}>
@@ -610,11 +634,17 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.45)', // Backdrop difuminado idéntico a Web
-    justifyContent: 'flex-start', // Posiciona el modal más arriba para que el teclado no tape los campos
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 36 : 16, // Desplaza hacia arriba para dar espacio al teclado
     paddingBottom: 16,
+  },
+  overlayCentered: {
+    justifyContent: 'center',
+    paddingTop: 16,
+  },
+  overlayActive: {
+    justifyContent: 'flex-start',
+    paddingTop: Platform.OS === 'ios' ? 36 : 16, // Desplaza hacia arriba solo cuando el teclado está visible
   },
   card: {
     width: '100%',

@@ -22,7 +22,10 @@ export interface Channel {
   id: string;
   name: string;
   is_private: boolean | number;
-  category?: 'general' | 'emergencia' | 'tactico' | 'vialidad' | 'inteligencia';
+  access_code?: string | null;
+  created_by?: string;
+  created_at?: string;
+  category?: 'general' | 'emergencia' | 'tactico' | 'vialidad' | 'inteligencia' | string;
   active_transmitters_count?: number;
   member_count?: number;
   is_encrypted?: boolean | number;

@@ -8,7 +8,22 @@ interface RadioContextType {
   channels: Channel[];
   selectedChannel: Channel | null;
   setSelectedChannel: (channel: Channel | null) => void;
-  createChannel: (name: string, isPrivate?: boolean) => Promise<Channel>;
+  createChannel: (
+    name: string,
+    isPrivate?: boolean,
+    category?: string,
+    accessCode?: string
+  ) => Promise<Channel>;
+  joinChannel: (
+    channelId: string,
+    pin?: string
+  ) => Promise<{ success: boolean; message?: string; channel?: Channel }>;
+  joinChannelByCode: (
+    code: string
+  ) => Promise<{ success: boolean; message?: string; channel?: Channel }>;
+  deleteChannel: (channelId: string) => Promise<void>;
+  availableNetworkChannels: Channel[];
+  refreshNetworkChannels: () => Promise<void>;
   voiceHistory: VoiceMessage[];
   clearHistory: () => Promise<void>;
   isTransmitting: boolean;
@@ -21,20 +36,98 @@ interface RadioContextType {
 
 const RadioContext = createContext<RadioContextType>({} as any);
 
+const DEFAULT_NETWORK_CHANNELS: Channel[] = [
+  {
+    id: 'chan-central-911',
+    name: 'DESPACHO CENTRAL 911 HIDALGO',
+    is_private: false,
+    category: 'emergencia',
+    access_code: '911001',
+    member_count: 12,
+    active_transmitters_count: 0,
+    is_encrypted: true,
+  },
+  {
+    id: 'chan-patrullaje-pachuca',
+    name: 'PATRULLAJE SECTOR PACHUCA',
+    is_private: false,
+    category: 'general',
+    access_code: '771100',
+    member_count: 8,
+    active_transmitters_count: 0,
+    is_encrypted: true,
+  },
+  {
+    id: 'chan-tactico-goes',
+    name: 'GRUPO TÁCTICO REACCIÓN G.O.E.S.',
+    is_private: true,
+    category: 'tactico',
+    access_code: '771042',
+    member_count: 6,
+    active_transmitters_count: 0,
+    is_encrypted: true,
+  },
+  {
+    id: 'chan-vialidad-estatal',
+    name: 'VIALIDAD Y TRÁNSITO ESTATAL',
+    is_private: false,
+    category: 'vialidad',
+    access_code: '420188',
+    member_count: 5,
+    active_transmitters_count: 0,
+    is_encrypted: true,
+  },
+  {
+    id: 'chan-inteligencia-c5i',
+    name: 'CENTRO INTELIGENCIA Y CÁMARAS',
+    is_private: true,
+    category: 'inteligencia',
+    access_code: '582910',
+    member_count: 4,
+    active_transmitters_count: 0,
+    is_encrypted: true,
+  },
+];
+
 export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [availableNetworkChannels, setAvailableNetworkChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [voiceHistory, setVoiceHistory] = useState<VoiceMessage[]>([]);
   const [isTransmitting, setIsTransmitting] = useState(false);
   const [transmittingUser, setTransmittingUser] = useState<string | null>(null);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
+  const loadNetworkChannels = async (): Promise<Channel[]> => {
+    try {
+      const stored = await AsyncStorage.getItem('c5i_network_channels');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setAvailableNetworkChannels(parsed);
+        return parsed;
+      } else {
+        await AsyncStorage.setItem('c5i_network_channels', JSON.stringify(DEFAULT_NETWORK_CHANNELS));
+        setAvailableNetworkChannels(DEFAULT_NETWORK_CHANNELS);
+        return DEFAULT_NETWORK_CHANNELS;
+      }
+    } catch {
+      setAvailableNetworkChannels(DEFAULT_NETWORK_CHANNELS);
+      return DEFAULT_NETWORK_CHANNELS;
+    }
+  };
+
+  const refreshNetworkChannels = async () => {
+    await loadNetworkChannels();
+  };
+
   // Cargar canales e historial sincronizados desde AsyncStorage
   useEffect(() => {
     (async () => {
       try {
         await AudioService.init();
+        await loadNetworkChannels();
+
         const storedChannels = await AsyncStorage.getItem('c5i_channels');
         if (storedChannels) {
           const parsed = JSON.parse(storedChannels);
@@ -58,22 +151,117 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     })();
   }, [user]);
 
-  const createChannel = async (name: string, isPrivate = false): Promise<Channel> => {
+  const createChannel = async (
+    name: string,
+    isPrivate = false,
+    category = 'tactico',
+    accessCode?: string
+  ): Promise<Channel> => {
+    const generatedPin = accessCode?.trim() || String(Math.floor(100000 + Math.random() * 900000));
     const newChan: Channel = {
       id: `chan-${Date.now()}`,
       name: name.trim().toUpperCase(),
       is_private: isPrivate,
-      category: 'tactico',
+      access_code: generatedPin,
+      category,
       member_count: 1,
       active_transmitters_count: 0,
       is_encrypted: true,
+      created_by: user?.id,
+      created_at: new Date().toISOString(),
     };
 
     const updated = [...channels, newChan];
     setChannels(updated);
     setSelectedChannel(newChan);
     await AsyncStorage.setItem('c5i_channels', JSON.stringify(updated));
+
+    // Also register in available network channels
+    try {
+      const netChannels = await loadNetworkChannels();
+      const updatedNet = [newChan, ...netChannels.filter((c) => c.id !== newChan.id)];
+      setAvailableNetworkChannels(updatedNet);
+      await AsyncStorage.setItem('c5i_network_channels', JSON.stringify(updatedNet));
+    } catch (e) {
+      console.warn('Error actualizando canales de red:', e);
+    }
+
     return newChan;
+  };
+
+  const joinChannel = async (
+    channelId: string,
+    pin?: string
+  ): Promise<{ success: boolean; message?: string; channel?: Channel }> => {
+    const netChannels = availableNetworkChannels.length > 0
+      ? availableNetworkChannels
+      : await loadNetworkChannels();
+
+    const target = netChannels.find((c) => c.id === channelId);
+    if (!target) {
+      return { success: false, message: 'Canal no encontrado en la red táctica.' };
+    }
+
+    if (target.is_private && target.access_code) {
+      if (!pin || pin.trim() !== target.access_code.trim()) {
+        return { success: false, message: 'Código PIN o clave táctica incorrecta.' };
+      }
+    }
+
+    // Check if already in channels
+    if (!channels.some((c) => c.id === target.id)) {
+      const updatedTarget = {
+        ...target,
+        member_count: (target.member_count || 1) + 1,
+      };
+      const updatedChannels = [...channels, updatedTarget];
+      setChannels(updatedChannels);
+      setSelectedChannel(updatedTarget);
+      await AsyncStorage.setItem('c5i_channels', JSON.stringify(updatedChannels));
+      return { success: true, channel: updatedTarget };
+    }
+
+    setSelectedChannel(target);
+    return { success: true, channel: target };
+  };
+
+  const joinChannelByCode = async (
+    code: string
+  ): Promise<{ success: boolean; message?: string; channel?: Channel }> => {
+    const clean = code.trim();
+    if (!clean || clean.length < 4) {
+      return { success: false, message: 'Ingresa un código válido de 6 dígitos.' };
+    }
+
+    const netChannels = availableNetworkChannels.length > 0
+      ? availableNetworkChannels
+      : await loadNetworkChannels();
+
+    // Match by access_code or id
+    const found = netChannels.find(
+      (c) =>
+        (c.access_code && c.access_code.trim() === clean) ||
+        c.id.toLowerCase() === clean.toLowerCase() ||
+        c.id.toLowerCase().endsWith(clean.toLowerCase())
+    );
+
+    if (!found) {
+      return {
+        success: false,
+        message: 'No se encontró ningún canal activo con el código ingresado.',
+      };
+    }
+
+    return await joinChannel(found.id, clean);
+  };
+
+  const deleteChannel = async (channelId: string): Promise<void> => {
+    const updated = channels.filter((c) => c.id !== channelId);
+    setChannels(updated);
+    if (selectedChannel?.id === channelId) {
+      setSelectedChannel(updated.length > 0 ? updated[0] : null);
+    }
+    await AsyncStorage.setItem('c5i_channels', JSON.stringify(updated));
   };
 
   const clearHistory = async () => {
@@ -116,6 +304,11 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         selectedChannel,
         setSelectedChannel,
         createChannel,
+        joinChannel,
+        joinChannelByCode,
+        deleteChannel,
+        availableNetworkChannels,
+        refreshNetworkChannels,
         voiceHistory,
         clearHistory,
         isTransmitting,

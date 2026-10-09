@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
-import { generateQrMatrix } from '../utils/qrGenerator';
+import QRCode from 'qrcode';
 
 interface QrCodeViewProps {
   value: string;
@@ -16,12 +16,26 @@ export const QrCodeView: React.FC<QrCodeViewProps> = ({
   color = '#000000',
   backgroundColor = '#ffffff',
 }) => {
-  // Genera matriz estándar QR (ISO/IEC 18004)
+  // Genera matriz estándar internacional QR (ISO/IEC 18004) con nivel de corrección Medio (15%)
   const matrix = useMemo(() => {
     try {
-      return generateQrMatrix(value);
+      const cleanValue = (value && value.trim()) || 'c5i://canal/general';
+      const qr = QRCode.create(cleanValue, {
+        errorCorrectionLevel: 'M',
+      });
+      const moduleCount = qr.modules.size;
+      const result: boolean[][] = [];
+
+      for (let r = 0; r < moduleCount; r++) {
+        const row: boolean[] = [];
+        for (let c = 0; c < moduleCount; c++) {
+          row.push(Boolean(qr.modules.get(r, c)));
+        }
+        result.push(row);
+      }
+      return result;
     } catch (e) {
-      console.warn('Error generando QR estándar:', e);
+      console.warn('Error generando QR estándar con qrcode:', e);
       return [];
     }
   }, [value]);
@@ -30,8 +44,8 @@ export const QrCodeView: React.FC<QrCodeViewProps> = ({
     return null;
   }
 
-  // Zona de silencio estándar (quiet zone de 2 módulos de margen blanco para lectura óptica instantánea)
-  const margin = 2;
+  // Margen estándar "quiet zone" de 3 módulos para garantizar detección instantánea por cámaras móviles
+  const margin = 3;
   const N = matrix.length + margin * 2;
   const cellSize = size / N;
 
@@ -44,11 +58,11 @@ export const QrCodeView: React.FC<QrCodeViewProps> = ({
             if (!active) return null;
             return (
               <Rect
-                key={`${r}-${c}`}
+                key={`qr-${r}-${c}`}
                 x={(c + margin) * cellSize}
                 y={(r + margin) * cellSize}
-                width={cellSize + 0.15}
-                height={cellSize + 0.15}
+                width={cellSize + 0.05}
+                height={cellSize + 0.05}
                 fill={color}
               />
             );
@@ -65,11 +79,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 4,
+    padding: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 4,
   },
 });

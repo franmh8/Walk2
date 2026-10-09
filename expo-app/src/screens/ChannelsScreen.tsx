@@ -38,6 +38,8 @@ import {
   Camera,
   ChevronDown,
   AlertTriangle,
+  LogOut,
+  Shield,
 } from 'lucide-react-native';
 import { QrCodeView } from '../components/QrCodeView';
 import { QrScannerModal } from '../components/QrScannerModal';
@@ -70,6 +72,7 @@ export function ChannelsScreen({ navigation }: any) {
     joinChannel,
     joinChannelByCode,
     deleteChannel,
+    leaveChannel,
     availableNetworkChannels,
     refreshNetworkChannels,
   } = useRadio();
@@ -289,7 +292,7 @@ export function ChannelsScreen({ navigation }: any) {
   const handleDeleteChannel = (channel: Channel) => {
     Alert.alert(
       'Eliminar Canal',
-      `¿Deseas eliminar permanentemente el canal "${channel.name}"?`,
+      `¿Deseas eliminar permanentemente el canal "${channel.name}"? Esta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -297,6 +300,27 @@ export function ChannelsScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             await deleteChannel(channel.id);
+            if (configModalVisible && configChannel?.id === channel.id) {
+              setConfigModalVisible(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Salir / Abandonar canal (para usuarios que no son administradores)
+  const handleLeaveChannel = (channel: Channel) => {
+    Alert.alert(
+      'Salir del Grupo',
+      `¿Deseas desconectarte y abandonar el canal "${channel.name}"? Dejarás de recibir el audio de esta frecuencia.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Salir del Grupo',
+          style: 'destructive',
+          onPress: async () => {
+            await leaveChannel(channel.id);
             if (configModalVisible && configChannel?.id === channel.id) {
               setConfigModalVisible(false);
             }
@@ -1048,110 +1072,213 @@ export function ChannelsScreen({ navigation }: any) {
       />
 
       {/* ======================================================== */}
-      {/* MODAL 5: CONFIGURACIÓN MINIMALISTA Y QR ESCANEABLE       */}
+      {/* MODAL 5: CONFIGURACIÓN (ADMINISTRADOR vs USUARIOS)       */}
       {/* ======================================================== */}
-      {configChannel && (
-        <Modal
-          visible={configModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setConfigModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View
-              style={[
-                styles.modalCard,
-                styles.minimalConfigModal,
-                { backgroundColor: colors.card, borderColor: colors.cardBorder },
-              ]}
-            >
-              {/* Encabezado limpio */}
-              <View style={styles.webModalHeader}>
-                <View style={styles.webModalHeaderTitleRow}>
-                  <QrCode color="#8a1a36" size={20} />
-                  <Text style={styles.webModalTitle}>Configuración del Canal</Text>
+      {configChannel && (() => {
+        const isConfigAdmin = Boolean(
+          user?.role === 'admin' ||
+          configChannel.role === 'admin' ||
+          (user?.id && configChannel.admin_id === user.id) ||
+          (user?.id && configChannel.created_by === user.id) ||
+          (user?.phone_number && configChannel.created_by === user.phone_number)
+        );
+        const channelAdminName = configChannel.admin_name || 'Comandancia C5i Central';
+
+        return (
+          <Modal
+            visible={configModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setConfigModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View
+                style={[
+                  styles.modalCard,
+                  styles.minimalConfigModal,
+                  { backgroundColor: colors.card, borderColor: colors.cardBorder },
+                ]}
+              >
+                {/* Encabezado limpio */}
+                <View style={styles.webModalHeader}>
+                  <View style={styles.webModalHeaderTitleRow}>
+                    <QrCode color="#8a1a36" size={20} />
+                    <Text style={styles.webModalTitle}>Configuración del Canal</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setConfigModalVisible(false)}
+                    style={styles.closeBtn}
+                  >
+                    <X color={colors.textMuted} size={18} />
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => setConfigModalVisible(false)}
-                  style={styles.closeBtn}
-                >
-                  <X color={colors.textMuted} size={18} />
-                </Pressable>
-              </View>
 
-              <View style={styles.webModalDivider} />
+                <View style={styles.webModalDivider} />
 
-              {/* Título y categoría del canal */}
-              <View style={styles.minimalHeaderInfo}>
-                <Text style={[styles.minimalChannelName, { color: colors.text }]}>
-                  {configChannel.name}
-                </Text>
-                <Text style={[styles.minimalChannelMeta, { color: colors.textMuted }]}>
-                  {(configChannel.category || 'general').toUpperCase()} • {configChannel.member_count || 1} activos
-                </Text>
-              </View>
+                {/* Título y categoría del canal */}
+                <View style={styles.minimalHeaderInfo}>
+                  <Text style={[styles.minimalChannelName, { color: colors.text }]}>
+                    {configChannel.name}
+                  </Text>
+                  <Text style={[styles.minimalChannelMeta, { color: colors.textMuted }]}>
+                    {(configChannel.category || 'general').toUpperCase()} • {configChannel.member_count || 1} miembros
+                  </Text>
 
-              {/* CÓDIGO QR ESTÁNDAR ISO/IEC 18004 100% ESCANEABLE CON CUALQUIER CÁMARA MÓVIL */}
-              <View style={styles.minimalQrBox}>
-                <QrCodeView
-                  value={`https://c5i.hidalgo.gob.mx/radio/canal/${configChannel.access_code || configChannel.id}`}
-                  size={190}
-                  color="#000000"
-                  backgroundColor="#ffffff"
-                />
-                <Text style={[styles.minimalScanInstruction, { color: colors.textMuted }]}>
-                  Escanea con la cámara del celular para sincronizar el canal
-                </Text>
-              </View>
+                  {/* Badge de Nivel de Rol: Administrador vs Usuario */}
+                  <View style={styles.roleBadgeContainer}>
+                    {isConfigAdmin ? (
+                      <View style={styles.adminRoleBadge}>
+                        <ShieldCheck color="#10b981" size={13} />
+                        <Text style={styles.adminRoleBadgeText}>ROL: ADMINISTRADOR</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.userRoleBadge}>
+                        <Users color="#38bdf8" size={13} />
+                        <Text style={styles.userRoleBadgeText}>ROL: USUARIO OPERATIVO</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
 
-              {/* PIN del Grupo en casillas estilizadas limpias */}
-              <View style={styles.minimalPinRow}>
-                <Text style={[styles.minimalPinLabel, { color: colors.textSecondary }]}>
-                  PIN:
-                </Text>
-                {(configChannel.access_code || '7710')
-                  .slice(0, 4)
-                  .split('')
-                  .map((d, i) => (
+                {/* CONTENIDO EXCLUSIVO SEGÚN EL ROL */}
+                {isConfigAdmin ? (
+                  // VISTA PARA EL ADMINISTRADOR (Único que ve el PIN y el QR)
+                  <View>
+                    <Text style={[styles.adminNoticeText, { color: colors.textSecondary }]}>
+                      Como Administrador tienes autorización exclusiva para visualizar y compartir las credenciales de este canal.
+                    </Text>
+
+                    {/* CÓDIGO QR ESTÁNDAR ISO/IEC 18004 100% ESCANEABLE */}
+                    <View style={styles.minimalQrBox}>
+                      <QrCodeView
+                        value={`https://c5i.hidalgo.gob.mx/radio/canal/${configChannel.access_code || configChannel.id}`}
+                        size={185}
+                        color="#000000"
+                        backgroundColor="#ffffff"
+                      />
+                      <Text style={[styles.minimalScanInstruction, { color: colors.textMuted }]}>
+                        Muestra este código a tus compañeros para sincronizar la frecuencia con su cámara
+                      </Text>
+                    </View>
+
+                    {/* PIN del Grupo en casillas estilizadas limpias */}
+                    <View style={styles.minimalPinRow}>
+                      <Text style={[styles.minimalPinLabel, { color: colors.textSecondary }]}>
+                        PIN:
+                      </Text>
+                      {(configChannel.access_code || '7710')
+                        .slice(0, 4)
+                        .split('')
+                        .map((d, i) => (
+                          <View
+                            key={i}
+                            style={[
+                              styles.minimalPinCharBox,
+                              {
+                                backgroundColor: isDark ? '#111927' : '#ffffff',
+                                borderColor: '#8a1a36',
+                              },
+                            ]}
+                          >
+                            <Text style={styles.minimalPinCharText}>{d}</Text>
+                          </View>
+                        ))}
+                    </View>
+
+                    {/* Acciones de Administrador */}
+                    <View style={styles.minimalActionButtons}>
+                      <Pressable
+                        onPress={handleShareChannel}
+                        style={[styles.minimalShareBtn, { backgroundColor: '#8a1a36' }]}
+                      >
+                        <Share2 color="#ffffff" size={16} />
+                        <Text style={styles.minimalShareBtnText}>Compartir Canal</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => handleDeleteChannel(configChannel)}
+                        style={styles.minimalDeleteBtn}
+                      >
+                        <Trash2 color="#ef4444" size={14} />
+                        <Text style={styles.minimalDeleteBtnText}>Eliminar este Canal</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  // VISTA PARA USUARIOS NORMALES (PIN y QR ocultos bajo protección de seguridad)
+                  <View>
                     <View
-                      key={i}
                       style={[
-                        styles.minimalPinCharBox,
+                        styles.restrictedBox,
                         {
-                          backgroundColor: isDark ? '#111927' : '#ffffff',
-                          borderColor: '#8a1a36',
+                          backgroundColor: isDark ? '#0f172a' : '#f8fafc',
+                          borderColor: colors.cardBorder,
                         },
                       ]}
                     >
-                      <Text style={styles.minimalPinCharText}>{d}</Text>
+                      <View style={styles.restrictedIconBadge}>
+                        <Lock color="#f59e0b" size={24} />
+                      </View>
+                      <Text style={[styles.restrictedTitle, { color: colors.text }]}>
+                        Código y QR Protegidos
+                      </Text>
+                      <Text style={[styles.restrictedDesc, { color: colors.textSecondary }]}>
+                        Solo el Administrador del canal tiene autorización para visualizar el código PIN de acceso y el código QR de sincronización.
+                      </Text>
+
+                      <View style={styles.restrictedDivider} />
+
+                      <View style={styles.restrictedRow}>
+                        <Text style={[styles.restrictedLabel, { color: colors.textMuted }]}>
+                          Administrador:
+                        </Text>
+                        <Text style={[styles.restrictedValue, { color: colors.text }]}>
+                          {channelAdminName}
+                        </Text>
+                      </View>
+
+                      <View style={styles.restrictedRow}>
+                        <Text style={[styles.restrictedLabel, { color: colors.textMuted }]}>
+                          Tu Nivel de Acceso:
+                        </Text>
+                        <Text style={[styles.restrictedValue, { color: '#38bdf8' }]}>
+                          Usuario Operativo
+                        </Text>
+                      </View>
+
+                      <View style={styles.restrictedRow}>
+                        <Text style={[styles.restrictedLabel, { color: colors.textMuted }]}>
+                          Seguridad:
+                        </Text>
+                        <Text style={[styles.restrictedValue, { color: '#10b981' }]}>
+                          Frecuencia Cifrada E2EE
+                        </Text>
+                      </View>
                     </View>
-                  ))}
-              </View>
 
-              {/* Acciones principales limpias */}
-              <View style={styles.minimalActionButtons}>
-                <Pressable
-                  onPress={handleShareChannel}
-                  style={[styles.minimalShareBtn, { backgroundColor: '#8a1a36' }]}
-                >
-                  <Share2 color="#ffffff" size={16} />
-                  <Text style={styles.minimalShareBtnText}>Compartir Canal</Text>
-                </Pressable>
-
-                {(!configChannel.created_by || configChannel.created_by === user?.id) && (
-                  <Pressable
-                    onPress={() => handleDeleteChannel(configChannel)}
-                    style={styles.minimalDeleteBtn}
-                  >
-                    <Trash2 color="#ef4444" size={14} />
-                    <Text style={styles.minimalDeleteBtnText}>Eliminar este Canal</Text>
-                  </Pressable>
+                    {/* Botón para que el usuario pueda salir del canal */}
+                    <View style={styles.minimalActionButtons}>
+                      <Pressable
+                        onPress={() => handleLeaveChannel(configChannel)}
+                        style={[
+                          styles.leaveChannelBtn,
+                          {
+                            backgroundColor: isDark ? '#1e293b' : '#fef2f2',
+                            borderColor: isDark ? 'rgba(239, 68, 68, 0.4)' : '#fecaca',
+                          },
+                        ]}
+                      >
+                        <LogOut color="#ef4444" size={16} />
+                        <Text style={styles.leaveChannelBtnText}>Salir de este Grupo</Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 )}
               </View>
             </View>
-          </View>
-        </Modal>
-      )}
+          </Modal>
+        );
+      })()}
     </SafeAreaView>
   );
 }
@@ -1716,5 +1843,115 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 12,
     fontWeight: '600',
+  },
+  roleBadgeContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  adminRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  adminRoleBadgeText: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  userRoleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  userRoleBadgeText: {
+    color: '#38bdf8',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  adminNoticeText: {
+    fontSize: 11,
+    lineHeight: 15,
+    textAlign: 'center',
+    marginBottom: 6,
+    paddingHorizontal: 8,
+  },
+  restrictedBox: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  restrictedIconBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  restrictedTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  restrictedDesc: {
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginBottom: 14,
+    paddingHorizontal: 6,
+  },
+  restrictedDivider: {
+    width: '100%',
+    height: 1,
+    backgroundColor: 'rgba(148, 163, 184, 0.18)',
+    marginBottom: 12,
+  },
+  restrictedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: 4,
+  },
+  restrictedLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  restrictedValue: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  leaveChannelBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  leaveChannelBtnText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

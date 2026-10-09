@@ -22,6 +22,7 @@ interface RadioContextType {
     code: string
   ) => Promise<{ success: boolean; message?: string; channel?: Channel }>;
   deleteChannel: (channelId: string) => Promise<void>;
+  leaveChannel: (channelId: string) => Promise<void>;
   availableNetworkChannels: Channel[];
   refreshNetworkChannels: () => Promise<void>;
   voiceHistory: VoiceMessage[];
@@ -103,7 +104,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     category = 'tactico',
     accessCode?: string
   ): Promise<Channel> => {
-    const generatedPin = accessCode?.trim() || String(Math.floor(100000 + Math.random() * 900000));
+    const generatedPin = accessCode?.trim() || String(Math.floor(1000 + Math.random() * 9000));
     const newChan: Channel = {
       id: `chan-${Date.now()}`,
       name: name.trim().toUpperCase(),
@@ -113,7 +114,10 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       member_count: 1,
       active_transmitters_count: 0,
       is_encrypted: true,
-      created_by: user?.id,
+      created_by: user?.id || 'admin',
+      admin_id: user?.id || 'admin',
+      admin_name: user?.name || user?.callsign || 'Administrador',
+      role: 'admin',
       created_at: new Date().toISOString(),
     };
 
@@ -154,11 +158,18 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
 
+    const isUserAdmin = Boolean(
+      user?.role === 'admin' ||
+      (user?.id && target.created_by === user.id) ||
+      (user?.id && target.admin_id === user.id)
+    );
+
     // Check if already in channels
     if (!channels.some((c) => c.id === target.id)) {
-      const updatedTarget = {
+      const updatedTarget: Channel = {
         ...target,
         member_count: (target.member_count || 1) + 1,
+        role: isUserAdmin ? 'admin' : 'usuario',
       };
       const updatedChannels = [...channels, updatedTarget];
       setChannels(updatedChannels);
@@ -176,7 +187,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ): Promise<{ success: boolean; message?: string; channel?: Channel }> => {
     const clean = code.trim();
     if (!clean || clean.length < 4) {
-      return { success: false, message: 'Ingresa un código válido de 6 dígitos.' };
+      return { success: false, message: 'Ingresa un código válido de 4 a 6 dígitos.' };
     }
 
     const netChannels = availableNetworkChannels.length > 0
@@ -202,6 +213,15 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteChannel = async (channelId: string): Promise<void> => {
+    const updated = channels.filter((c) => c.id !== channelId);
+    setChannels(updated);
+    if (selectedChannel?.id === channelId) {
+      setSelectedChannel(updated.length > 0 ? updated[0] : null);
+    }
+    await AsyncStorage.setItem('c5i_channels', JSON.stringify(updated));
+  };
+
+  const leaveChannel = async (channelId: string): Promise<void> => {
     const updated = channels.filter((c) => c.id !== channelId);
     setChannels(updated);
     if (selectedChannel?.id === channelId) {
@@ -253,6 +273,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         joinChannel,
         joinChannelByCode,
         deleteChannel,
+        leaveChannel,
         availableNetworkChannels,
         refreshNetworkChannels,
         voiceHistory,

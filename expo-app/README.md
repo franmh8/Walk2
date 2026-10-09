@@ -11,16 +11,20 @@ Aplicación nativa móvil para **Expo Go** (iOS y Android) actualizada a **Expo 
 cd expo-app
 ```
 
-### 2. Instala las dependencias:
+### 2. Instala las dependencias limpias:
 ```bash
+rm -rf node_modules package-lock.json
 npm install
 ```
 
-### 3. Inicia el servidor Expo con túnel:
+### 3. Inicia el servidor Expo con túnel y caché limpia:
 ```bash
 npx expo start --tunnel -c
 ```
 *(El parámetro `--tunnel` permite que tu iPhone y Android se conecten sin importar la red Wi-Fi; `-c` limpia la caché de Metro)*.
+
+> **Nota si viste el error `TypeError: Cannot read properties of undefined (reading 'transformFile')`:**
+> Ocurría porque `expo-app/package.json` tenía `"type": "module"` y dependencias de servidor web en lugar de React Native. Tras actualizar el `package.json` corregido, borra `node_modules` y `package-lock.json` dentro de `expo-app/`, ejecuta `npm install` y luego `npx expo start -c`.
 
 ### 4. Escanear en tu móvil:
 - **iPhone:** Abre la aplicación nativa de **Cámara**, enfoca el código QR en pantalla y toca la notificación para abrir en **Expo Go**.

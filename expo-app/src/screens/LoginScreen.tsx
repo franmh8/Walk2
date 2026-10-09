@@ -208,33 +208,6 @@ export function LoginScreen() {
     }
   };
 
-  const handleRegisterSubmit = async () => {
-    if (!regName.trim() || !regPhone.trim() || !regPassword.trim()) {
-      Alert.alert('Datos Incompletos', 'Por favor llena todos los campos requeridos.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await register({
-        name: regName.trim(),
-        phone_number: regPhone.trim(),
-        callsign: regCallsign.trim() || `PATRULLA-${regPhone.slice(-3)}`,
-        password: regPassword.trim(),
-        unit: 'Sector Operativo Hidalgo',
-        role: 'Oficial Operativo',
-      });
-      setRegisterVisible(false);
-      setIdentifier(regPhone.trim());
-      setPassword(regPassword.trim());
-      setSuccessMessage('¡Registro y verificación telefónica completados con éxito! Puedes iniciar sesión.');
-    } catch (err: any) {
-      Alert.alert('Error', err?.message || 'No se pudo completar el registro.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRecoverSubmit = () => {
     if (!recoverPhone.trim()) {
       Alert.alert('Atención', 'Ingresa tu teléfono o correo registrado.');

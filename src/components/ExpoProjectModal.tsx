@@ -104,20 +104,40 @@ export default function App() {
   "version": "1.0.0",
   "main": "expo/AppEntry.js",
   "scripts": {
-    "start": "expo start"
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.27",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^6.5.20",
     "@react-navigation/native": "^6.1.17",
-    "expo": "~57.0.26",
+    "axios": "^1.20.0",
+    "expo": "^57.0.27",
     "expo-av": "~16.0.8",
+    "expo-camera": "~57.0.6",
+    "expo-constants": "~18.0.13",
     "expo-haptics": "~57.0.3",
+    "expo-location": "~57.0.20",
+    "expo-status-bar": "~3.0.9",
     "lucide-react-native": "^0.395.0",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0"
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "~15.11.1",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "~19.2.4",
+    "babel-preset-expo": "~57.0.27",
+    "typescript": "~5.8.2"
   }
 }`,
   },

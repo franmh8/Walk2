@@ -199,8 +199,10 @@ export function generateQrMatrix(text: string): boolean[][] {
     if (mat[i][8] === null) mat[i][8] = false;
   }
   for (let i = 0; i < 8; i++) {
-    if (mat[8][size - 1 - i] === null) mat[8][size - 1 - i] = false;
-    if (mat[size - 1 - i][8] === null) mat[size - 1 - i] = false;
+    const colIdx = size - 1 - i;
+    const rowIdx = size - 1 - i;
+    if (mat[8][colIdx] === null) mat[8][colIdx] = false;
+    if (mat[rowIdx][8] === null) mat[rowIdx][8] = false;
   }
 
   // Colocar datos en zig-zag

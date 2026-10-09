@@ -8,10 +8,11 @@ import {
   Animated,
   Easing,
   Platform,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { X, QrCode, Flashlight, Camera, KeyRound, ShieldCheck } from 'lucide-react-native';
+import { X, QrCode, Flashlight, Camera, KeyRound, AlertTriangle, CheckCircle2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 
 interface QrScannerModalProps {
   visible: boolean;
@@ -26,25 +27,39 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   onScanSuccess,
   onOpenManualCode,
 }) => {
+  const [permission, requestPermission] = useCameraPermissions();
   const [torchEnabled, setTorchEnabled] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false);
   const scanLineAnim = useRef(new Animated.Value(0)).current;
+
+  // Reset al abrir el modal
+  useEffect(() => {
+    if (visible) {
+      setHasScanned(false);
+      setTorchEnabled(false);
+      // Solicita permiso automáticamente si aún no ha sido determinado
+      if (!permission) {
+        requestPermission();
+      }
+    }
+  }, [visible]);
 
   // Animación del láser escáner táctico
   useEffect(() => {
     let anim: Animated.CompositeAnimation | null = null;
-    if (visible) {
+    if (visible && !hasScanned) {
       scanLineAnim.setValue(0);
       anim = Animated.loop(
         Animated.sequence([
           Animated.timing(scanLineAnim, {
             toValue: 1,
-            duration: 1800,
+            duration: 1700,
             easing: Easing.inOut(Easing.quad),
             useNativeDriver: true,
           }),
           Animated.timing(scanLineAnim, {
             toValue: 0,
-            duration: 1800,
+            duration: 1700,
             easing: Easing.inOut(Easing.quad),
             useNativeDriver: true,
           }),
@@ -58,20 +73,38 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     return () => {
       if (anim) anim.stop();
     };
-  }, [visible]);
+  }, [visible, hasScanned]);
 
   if (!visible) return null;
 
   const translateY = scanLineAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [10, 210],
+    outputRange: [10, 200],
   });
+
+  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
+    if (hasScanned) return;
+    const data = result.data;
+    if (!data) return;
+
+    setHasScanned(true);
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {}
+
+    // Pequeño delay táctico para feedback visual
+    setTimeout(() => {
+      onScanSuccess(data);
+    }, 300);
+  };
+
+  const isCameraAvailable = permission?.granted;
 
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="fade"
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
@@ -91,14 +124,39 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
           {/* Subtítulo */}
           <Text style={styles.subtitle}>
-            Apunta la cámara del dispositivo al código QR táctico para vincularte automáticamente a la frecuencia.
+            Apunta la cámara del dispositivo al código QR para sincronizar el canal automáticamente.
           </Text>
 
           {/* Visor de Cámara con Retícula y Láser */}
           <View style={styles.cameraViewport}>
-            {/* Fondo simulado de visor oscuro */}
-            <View style={styles.cameraBackground}>
-              {/* Marco de enfoque */}
+            {isCameraAvailable ? (
+              <CameraView
+                style={StyleSheet.absoluteFillObject}
+                facing="back"
+                enableTorch={torchEnabled}
+                barcodeScannerSettings={{
+                  barcodeTypes: ['qr'],
+                }}
+                onBarcodeScanned={hasScanned ? undefined : handleBarcodeScanned}
+              />
+            ) : (
+              <View style={styles.permissionContainer}>
+                <Camera color="#94a3b8" size={38} style={{ opacity: 0.6, marginBottom: 12 }} />
+                <Text style={styles.permissionTitle}>Permiso de Cámara Requerido</Text>
+                <Text style={styles.permissionSubtitle}>
+                  Para escanear códigos QR tácticos se requiere acceso a la cámara.
+                </Text>
+                <Pressable
+                  onPress={requestPermission}
+                  style={styles.permissionBtn}
+                >
+                  <Text style={styles.permissionBtnText}>Habilitar Cámara</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Capa superpuesta con visor táctico y marco de enfoque */}
+            <View style={styles.scannerOverlay}>
               <View style={styles.focusFrame}>
                 {/* Esquinas tácticas */}
                 <View style={[styles.corner, styles.cornerTL]} />
@@ -107,44 +165,51 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 <View style={[styles.corner, styles.cornerBR]} />
 
                 {/* Línea láser de escaneo animada */}
-                <Animated.View
-                  style={[
-                    styles.laserLine,
-                    {
-                      transform: [{ translateY }],
-                    },
-                  ]}
-                />
+                {!hasScanned && isCameraAvailable && (
+                  <Animated.View
+                    style={[
+                      styles.laserLine,
+                      {
+                        transform: [{ translateY }],
+                      },
+                    ]}
+                  />
+                )}
 
-                <View style={styles.centerBadge}>
-                  <QrCode color="rgba(255,255,255,0.4)" size={48} />
-                </View>
+                {hasScanned && (
+                  <View style={styles.scannedSuccessBadge}>
+                    <CheckCircle2 color="#10b981" size={42} />
+                    <Text style={styles.scannedSuccessText}>¡Código Detectado!</Text>
+                  </View>
+                )}
               </View>
             </View>
 
-            {/* Controles de cámara flotantes */}
-            <View style={styles.cameraControls}>
-              <Pressable
-                onPress={() => {
-                  setTorchEnabled(!torchEnabled);
-                  try {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  } catch {}
-                }}
-                style={[
-                  styles.controlBtn,
-                  torchEnabled && styles.controlBtnActive,
-                ]}
-              >
-                <Flashlight
-                  color={torchEnabled ? '#f59e0b' : '#ffffff'}
-                  size={18}
-                />
-                <Text style={styles.controlBtnText}>
-                  {torchEnabled ? 'Flash ON' : 'Flash'}
-                </Text>
-              </Pressable>
-            </View>
+            {/* Controles de linterna si la cámara está activa */}
+            {isCameraAvailable && (
+              <View style={styles.cameraControls}>
+                <Pressable
+                  onPress={() => {
+                    setTorchEnabled(!torchEnabled);
+                    try {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    } catch {}
+                  }}
+                  style={[
+                    styles.controlBtn,
+                    torchEnabled && styles.controlBtnActive,
+                  ]}
+                >
+                  <Flashlight
+                    color={torchEnabled ? '#f59e0b' : '#ffffff'}
+                    size={16}
+                  />
+                  <Text style={styles.controlBtnText}>
+                    {torchEnabled ? 'Linterna ON' : 'Linterna'}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
           </View>
 
           {/* Botones inferiores */}
@@ -239,19 +304,50 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cameraBackground: {
+  permissionContainer: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#070d18',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
+  },
+  permissionTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  permissionSubtitle: {
+    color: '#94a3b8',
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginBottom: 16,
+  },
+  permissionBtn: {
+    backgroundColor: '#8a1a36',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  permissionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  scannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
   },
   focusFrame: {
-    width: 220,
-    height: 220,
+    width: 210,
+    height: 210,
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
     borderRadius: 16,
   },
   corner: {
@@ -296,12 +392,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#eb527c',
     shadowColor: '#eb527c',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
     elevation: 4,
   },
-  centerBadge: {
-    opacity: 0.3,
+  scannedSuccessBadge: {
+    backgroundColor: 'rgba(11, 19, 32, 0.9)',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  scannedSuccessText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   cameraControls: {
     position: 'absolute',
@@ -313,7 +421,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,

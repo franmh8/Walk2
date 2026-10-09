@@ -24,6 +24,9 @@ export interface Channel {
   is_private: boolean | number;
   access_code?: string | null;
   created_by?: string;
+  admin_id?: string;
+  admin_name?: string;
+  role?: 'admin' | 'usuario';
   created_at?: string;
   category?: 'general' | 'emergencia' | 'tactico' | 'vialidad' | 'inteligencia' | string;
   active_transmitters_count?: number;

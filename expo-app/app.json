@@ -18,7 +18,8 @@
       "infoPlist": {
         "UIBackgroundModes": ["audio", "fetch", "remote-notification"],
         "NSMicrophoneUsageDescription": "C5i requiere acceso al micrófono para comunicaciones tácticas Push-to-Talk (PTT).",
-        "NSLocationWhenInUseUsageDescription": "C5i requiere tu ubicación para el despacho y alertas de emergencia SOS."
+        "NSLocationWhenInUseUsageDescription": "C5i requiere tu ubicación para el despacho y alertas de emergencia SOS.",
+        "NSCameraUsageDescription": "C5i requiere acceso a la cámara para escanear códigos QR tácticos de canales y frecuencias de radio."
       }
     },
     "android": {
@@ -28,6 +29,7 @@
         "backgroundColor": "#691c32"
       },
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.VIBRATE",
@@ -41,6 +43,12 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "C5i requiere tu ubicación para coordinar alertas de emergencia SOS."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "C5i requiere acceso a la cámara para escanear códigos QR tácticos de canales y frecuencias de radio."
         }
       ]
     ]
